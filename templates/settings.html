@@ -45,6 +45,64 @@
 
 <br>
 
+<table class="trendan" style="width:100%; max-width:560px;">
+  <thead>
+    <tr><th class="custitle" colspan="2">Diet Calculator</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td colspan="2" style="padding:10px 16px;">
+        <form method="post" action="{{ url_for('settings_plan_save') }}">
+          <table style="border-collapse:collapse;">
+            <tr>
+              <td style="padding:4px 8px 4px 0; font-size:0.85rem;">Data inizio:</td>
+              <td style="padding:4px 0;">
+                <input type="date" name="plan_start_date" value="{{ plan.start_date }}"
+                  style="font-size:0.85rem; padding:3px 6px; border:1px solid #999;">
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:4px 8px 4px 0; font-size:0.85rem;">Peso iniziale (kg):</td>
+              <td style="padding:4px 0;">
+                <input type="number" name="plan_start_weight" value="{{ plan.start_weight }}"
+                  step="0.1" min="30" max="300"
+                  style="font-size:0.85rem; padding:3px 6px; border:1px solid #999; width:80px;">
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:4px 8px 4px 0; font-size:0.85rem;">Data fine:</td>
+              <td style="padding:4px 0;">
+                <input type="date" name="plan_end_date" value="{{ plan.end_date }}"
+                  style="font-size:0.85rem; padding:3px 6px; border:1px solid #999;">
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:4px 8px 4px 0; font-size:0.85rem;">Peso finale (kg):</td>
+              <td style="padding:4px 0;">
+                <input type="number" name="plan_end_weight" value="{{ plan.end_weight }}"
+                  step="0.1" min="30" max="300"
+                  style="font-size:0.85rem; padding:3px 6px; border:1px solid #999; width:80px;">
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding:10px 0 4px;">
+                <input type="submit" value=" Applica " class="btn-settings">
+              </td>
+            </tr>
+          </table>
+        </form>
+        {% if plan.start_date %}
+        <form method="post" action="{{ url_for('settings_plan_delete') }}" style="margin-top:4px;">
+          <input type="submit" value=" Elimina piano " class="btn-settings-secondary">
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<br>
+
 <table class="trendan">
   <thead>
     <tr><th class="custitle">Download dati</th></tr>

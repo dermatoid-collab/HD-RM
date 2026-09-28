@@ -82,6 +82,41 @@ def set_config(key, value):
     db.close()
 
 
+def get_plan_overlay(date_list):
+    """Returns diet plan target weights aligned with date_list, or None if no plan configured."""
+    start_date = get_config("plan_start_date")
+    end_date = get_config("plan_end_date")
+    start_w = get_config("plan_start_weight")
+    end_w = get_config("plan_end_weight")
+    if not all([start_date, end_date, start_w, end_w]):
+        return None
+    try:
+        d0 = date.fromisoformat(start_date)
+        d1 = date.fromisoformat(end_date)
+        w0 = float(start_w)
+        w1 = float(end_w)
+    except Exception:
+        return None
+    if d1 <= d0:
+        return None
+    total_days = (d1 - d0).days
+    result = []
+    for ds in date_list:
+        try:
+            d = date.fromisoformat(ds)
+        except Exception:
+            result.append(None)
+            continue
+        if d < d0:
+            result.append(None)
+        elif d <= d1:
+            frac = (d - d0).days / total_days
+            result.append(round(w0 + frac * (w1 - w0), 2))
+        else:
+            result.append(round(w1, 2))
+    return result
+
+
 def garmin_login():
     """Login to Garmin, using saved token if available. Returns client."""
     from garminconnect import Garmin
@@ -297,6 +332,7 @@ def month_view(year, month):
     chart_weight = [r["weight"] for r in day_rows]
     chart_trend = [round(r["trend"], 1) if r["trend"] is not None else None for r in day_rows]
     kcal_data = [r["kcal"] for r in day_rows]
+    chart_plan = get_plan_overlay([r["date"] for r in day_rows])
 
     last_entries = db.execute(
         "SELECT trend FROM entries WHERE trend IS NOT NULL ORDER BY date DESC LIMIT 8"
@@ -330,6 +366,7 @@ def month_view(year, month):
         chart_labels=chart_labels,
         chart_weight=chart_weight,
         chart_trend=chart_trend,
+        chart_plan=chart_plan,
         kcal_data=kcal_data,
         week_delta=week_delta,
         daily_calories=daily_calories,
@@ -397,6 +434,7 @@ def year_view(year):
     chart_labels = [r["date"][5:] for r in rows]
     chart_weight = [r["weight"] for r in rows]
     chart_trend = [round(r["trend"], 1) if r["trend"] else None for r in rows]
+    chart_plan = get_plan_overlay([r["date"] for r in rows])
 
     monthly = {}
     for r in rows:
@@ -431,6 +469,7 @@ def year_view(year):
         chart_labels=chart_labels,
         chart_weight=chart_weight,
         chart_trend=chart_trend,
+        chart_plan=chart_plan,
         month_summaries=month_summaries,
         prev_year=year - 1,
         next_year=year + 1,
@@ -539,10 +578,12 @@ def chart_view():
         (d_from.isoformat(), d_to.isoformat())
     ).fetchall()
 
+    date_list = [r["date"] for r in rows]
     return render_template("chart.html", active_tab='chart', period=period,
-        chart_labels=[r["date"] for r in rows],
+        chart_labels=date_list,
         chart_weight=[r["weight"] for r in rows],
         chart_trend=[round(r["trend"], 1) if r["trend"] else None for r in rows],
+        chart_plan=get_plan_overlay(date_list),
         custom_from=custom_from, custom_to=custom_to, years=years, today=today)
 
 
@@ -576,8 +617,15 @@ def settings_view():
     dropbox_configured = bool(get_config("dropbox_refresh_token", ""))
     dropbox_last_sync = get_config("dropbox_last_sync", "Mai")
     dropbox_sync_error = get_config("dropbox_sync_error", "")
+    plan = {
+        "start_date": get_config("plan_start_date", ""),
+        "end_date": get_config("plan_end_date", ""),
+        "start_weight": get_config("plan_start_weight", ""),
+        "end_weight": get_config("plan_end_weight", ""),
+    }
     return render_template("settings.html", active_tab='settings',
         garmin_email=garmin_email, last_sync=last_sync, sync_error=sync_error,
+        plan=plan,
         dropbox_configured=dropbox_configured, dropbox_last_sync=dropbox_last_sync,
         dropbox_sync_error=dropbox_sync_error)
 
@@ -684,6 +732,26 @@ def settings_dropbox_sync():
     if get_config("dropbox_refresh_token"):
         t = threading.Thread(target=_dropbox_import_and_store, daemon=True)
         t.start()
+    return redirect(url_for("settings_view"))
+
+
+@app.route("/settings/plan", methods=["POST"])
+@login_required
+def settings_plan_save():
+    for k in ["plan_start_date", "plan_end_date", "plan_start_weight", "plan_end_weight"]:
+        v = request.form.get(k, "").strip()
+        if v:
+            set_config(k, v)
+    return redirect(url_for("settings_view"))
+
+
+@app.route("/settings/plan/delete", methods=["POST"])
+@login_required
+def settings_plan_delete():
+    db = get_db()
+    for k in ["plan_start_date", "plan_end_date", "plan_start_weight", "plan_end_weight"]:
+        db.execute("DELETE FROM config WHERE key=?", (k,))
+    db.commit()
     return redirect(url_for("settings_view"))
 
 

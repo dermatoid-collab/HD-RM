@@ -78,6 +78,19 @@ new Chart(document.getElementById('chartCanvas'), {
         spanGaps: true,
         borderWidth: 2,
       }
+      {% if chart_plan %},
+      {
+        label: 'Piano',
+        data: {{ chart_plan | tojson }},
+        borderColor: '#009900',
+        backgroundColor: 'transparent',
+        pointRadius: 0,
+        tension: 0,
+        spanGaps: true,
+        borderWidth: 1.5,
+        borderDash: [5, 4],
+      }
+      {% endif %}
     ]
   },
   options: {
