@@ -26,12 +26,18 @@ def garmin_get_token():
         headers={"Authorization": f"ApiKey {api_key}"},
         timeout=15,
     )
-    print(f"Token endpoint HTTP {r.status_code}, body: {r.text[:300]!r}")
+    print(f"Token endpoint HTTP {r.status_code}")
     r.raise_for_status()
-    data = r.json()
-    token = data.get("access_token") or data.get("token") or data.get("accessToken")
-    if not token:
-        raise ValueError(f"Token non trovato nella risposta: {list(data.keys())}")
+    try:
+        data = r.json()
+        token = data.get("access_token") or data.get("token") or data.get("accessToken")
+        if not token:
+            raise ValueError(f"Token non trovato nella risposta JSON: {list(data.keys())}")
+    except Exception:
+        # il server risponde con il token come stringa grezza (non JSON)
+        token = r.text.strip()
+        if not token:
+            raise ValueError("Token endpoint ha restituito corpo vuoto")
     print("Token Garmin ottenuto.")
     return token
 
