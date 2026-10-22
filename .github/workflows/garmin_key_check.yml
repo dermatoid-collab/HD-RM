@@ -3,7 +3,6 @@ name: Garmin API Key Expiry Check
 on:
   schedule:
     - cron: '0 8 * * 1'  # ogni lunedì alle 08:00 UTC
-  workflow_dispatch:
 
 jobs:
   check:
