@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
@@ -17,7 +18,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
 
             val today = LocalDate.now()
             val yesterday = today.minusDays(1)
-            val fmt = DateTimeFormatter.ofPattern("HH:mm")
+            val now = LocalDateTime.now()
 
             // Token Garmin
             val token = GarminApi.getToken(garminKey)
@@ -59,12 +60,18 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 if (isEmpty()) append("Nessun dato")
             }
 
-            Prefs.set(ctx, Prefs.KEY_LAST_RESULT, msg.trim())
-            Prefs.set(ctx, Prefs.KEY_LAST_SYNC, today.format(DateTimeFormatter.ofPattern("dd/MM HH:mm")))
+            val ts = now.format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
+            val finalMsg = msg.trim()
+            Prefs.set(ctx, Prefs.KEY_LAST_RESULT, finalMsg)
+            Prefs.set(ctx, Prefs.KEY_LAST_SYNC, ts)
+            Prefs.appendLog(ctx, "$ts  $finalMsg")
             SyncWidget.updateAll(ctx)
             Result.success()
         } catch (e: Exception) {
-            Prefs.set(ctx, Prefs.KEY_LAST_RESULT, "✗ ${e.message?.take(60)}")
+            val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
+            val errMsg = "✗ ${e.message?.take(80)}"
+            Prefs.set(ctx, Prefs.KEY_LAST_RESULT, errMsg)
+            Prefs.appendLog(ctx, "$ts  $errMsg")
             SyncWidget.updateAll(ctx)
             Result.failure()
         }

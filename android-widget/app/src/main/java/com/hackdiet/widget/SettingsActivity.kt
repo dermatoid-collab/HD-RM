@@ -16,6 +16,10 @@ class SettingsActivity : Activity() {
         val etIntervalsKey = findViewById<EditText>(R.id.et_intervals_key)
         val etAthleteId = findViewById<EditText>(R.id.et_athlete_id)
         val btnSave = findViewById<Button>(R.id.btn_save)
+        val tvLog = findViewById<android.widget.TextView>(R.id.tv_log)
+
+        val log = Prefs.get(this, Prefs.KEY_LOG, "")
+        tvLog.text = if (log.isBlank()) "Nessuna sincronizzazione ancora." else log
 
         etGarminKey.setText(Prefs.get(this, Prefs.KEY_GARMIN_API_KEY))
         etIntervalsKey.setText(Prefs.get(this, Prefs.KEY_INTERVALS_API_KEY))

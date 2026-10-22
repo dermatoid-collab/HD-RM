@@ -11,6 +11,8 @@ object Prefs {
     const val KEY_INTERVALS_ATHLETE_ID = "intervals_athlete_id"
     const val KEY_LAST_SYNC = "last_sync"
     const val KEY_LAST_RESULT = "last_result"
+    const val KEY_LOG = "sync_log"
+    private const val MAX_LOG_LINES = 50
 
     private fun prefs(ctx: Context) = EncryptedSharedPreferences.create(
         ctx,
@@ -25,6 +27,14 @@ object Prefs {
 
     fun set(ctx: Context, key: String, value: String) =
         prefs(ctx).edit().putString(key, value).apply()
+
+    fun appendLog(ctx: Context, line: String) {
+        val existing = get(ctx, KEY_LOG, "")
+        val lines = if (existing.isBlank()) mutableListOf() else existing.split("\n").toMutableList()
+        lines.add(0, line)
+        if (lines.size > MAX_LOG_LINES) lines.subList(MAX_LOG_LINES, lines.size).clear()
+        set(ctx, KEY_LOG, lines.joinToString("\n"))
+    }
 
     fun isConfigured(ctx: Context) =
         get(ctx, KEY_GARMIN_API_KEY).isNotBlank() &&
