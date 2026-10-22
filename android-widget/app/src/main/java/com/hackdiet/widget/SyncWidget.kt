@@ -6,9 +6,12 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.widget.RemoteViews
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 class SyncWidget : AppWidgetProvider() {
 
@@ -45,10 +48,16 @@ class SyncWidget : AppWidgetProvider() {
         private fun updateWidget(ctx: Context, mgr: AppWidgetManager, id: Int) {
             val views = RemoteViews(ctx.packageName, R.layout.widget_layout)
 
-            val status = Prefs.get(ctx, Prefs.KEY_LAST_RESULT, "↑ Sync Intervals")
+            val status = Prefs.get(ctx, Prefs.KEY_LAST_RESULT, "↑ Sync")
             val lastSync = Prefs.get(ctx, Prefs.KEY_LAST_SYNC, "")
             views.setTextViewText(R.id.tv_status, status)
-            views.setTextViewText(R.id.tv_last, if (lastSync.isNotBlank()) "Ultimo: $lastSync" else "")
+            views.setTextViewText(R.id.tv_last, "")
+
+            // Bianco se sync di oggi, rosso se precedente o mai fatto
+            val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM"))
+            val isToday = lastSync.startsWith(today)
+            val textColor = if (isToday || lastSync.isBlank()) Color.WHITE else Color.rgb(255, 80, 80)
+            views.setTextColor(R.id.tv_status, textColor)
 
             val intent = Intent(ctx, SyncWidget::class.java).apply { action = ACTION_SYNC }
             val pi = PendingIntent.getBroadcast(
