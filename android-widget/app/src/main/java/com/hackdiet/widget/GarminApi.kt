@@ -37,25 +37,35 @@ object GarminApi {
         val ds = date.toString()
         val authHeader = "Bearer $token"
 
-        // Daily summary
+        // Daily summary — returns { "data": [ { active_kilocalories, bmr_kilocalories, resting_heart_rate, … } ] }
+        val summaryUrl = "$BASE/usersummary-service/v2/dailysummaries?startDate=$ds&endDate=$ds"
         val summaryReq = Request.Builder()
-            .url("$BASE/daily-service/daily/summaries/$ds")
+            .url(summaryUrl)
             .header("Authorization", authHeader)
+            .header("Accept", "application/json")
             .build()
         var kcalConsumed: Int? = null
         var rhr: Int? = null
         client.newCall(summaryReq).execute().use { resp ->
             if (resp.isSuccessful) {
-                val j = JSONObject(resp.body?.string() ?: "{}")
-                kcalConsumed = j.optInt("consumed_kilocalories", 0).takeIf { it > 0 }
-                rhr = j.optInt("resting_heart_rate", 0).takeIf { it > 0 }
+                val root = JSONObject(resp.body?.string() ?: "{}")
+                val arr = root.optJSONArray("data")
+                val j = if (arr != null && arr.length() > 0) arr.getJSONObject(0) else null
+                if (j != null) {
+                    val active = j.optInt("active_kilocalories", 0)
+                    val bmr = j.optInt("bmr_kilocalories", 0)
+                    val total = active + bmr
+                    kcalConsumed = if (total > 0) total else null
+                    rhr = j.optInt("resting_heart_rate", 0).takeIf { it > 0 }
+                }
             }
         }
 
-        // Sleep
+        // Sleep — returns { deep_sleep_seconds, rem_sleep_seconds, sleep_time_seconds, … }
         val sleepReq = Request.Builder()
-            .url("$BASE/sleep-service/sleep/$ds")
+            .url("$BASE/sleep-service/sleep/dailySleep?date=$ds")
             .header("Authorization", authHeader)
+            .header("Accept", "application/json")
             .build()
         var deepMin: Int? = null
         var remMin: Int? = null
