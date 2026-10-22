@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Garmin Personal API Key"
-        android:textAppearance="?attr/textAppearanceBodyMedium" />
+        android:textSize="14sp" />
 
     <EditText
         android:id="@+id/et_garmin_key"
@@ -24,7 +24,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Intervals.icu API Key"
-        android:textAppearance="?attr/textAppearanceBodyMedium" />
+        android:textSize="14sp" />
 
     <EditText
         android:id="@+id/et_intervals_key"
@@ -39,7 +39,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Intervals.icu Athlete ID"
-        android:textAppearance="?attr/textAppearanceBodyMedium" />
+        android:textSize="14sp" />
 
     <EditText
         android:id="@+id/et_athlete_id"
