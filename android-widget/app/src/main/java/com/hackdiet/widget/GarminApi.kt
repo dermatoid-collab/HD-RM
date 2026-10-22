@@ -88,7 +88,7 @@ object GarminApi {
             try {
                 val j = JSONObject(sleepBody)
                 // API returns camelCase field names
-                fun secs(key: String) = j.optInt(key, 0).takeIf { it > 0 }?.let { it / 60 }
+                fun secs(key: String) = j.optInt(key, 0).takeIf { it > 0 }?.let { (it + 30) / 60 }
                 deepMin = secs("deepSleepSeconds")
                 remMin = secs("remSleepSeconds")
                 totalMin = secs("sleepTimeSeconds") ?: secs("totalSleepSeconds")
