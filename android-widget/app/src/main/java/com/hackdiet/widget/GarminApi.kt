@@ -53,7 +53,7 @@ object GarminApi {
         val summaryUrl = "$BASE/usersummary-service/v2/dailysummaries?startDate=$ds&endDate=$ds"
         val (summaryCode, summaryBody) = fetch(token, summaryUrl)
         debugLog.appendLine("SUMMARY $ds → HTTP $summaryCode")
-        debugLog.appendLine(summaryBody.take(500))
+        debugLog.appendLine(summaryBody.take(2000))
 
         var kcalConsumed: Int? = null
         var rhr: Int? = null
@@ -79,7 +79,7 @@ object GarminApi {
         val sleepUrl = "$BASE/sleep-service/sleep/dailySleep?date=$ds"
         val (sleepCode, sleepBody) = fetch(token, sleepUrl)
         debugLog.appendLine("SLEEP $ds → HTTP $sleepCode")
-        debugLog.appendLine(sleepBody.take(500))
+        debugLog.appendLine(sleepBody.take(2000))
 
         var deepMin: Int? = null
         var remMin: Int? = null
