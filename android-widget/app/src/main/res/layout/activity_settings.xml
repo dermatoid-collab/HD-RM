@@ -82,6 +82,7 @@
             android:layout_height="wrap_content"
             android:fontFamily="monospace"
             android:textSize="11sp"
+            android:textIsSelectable="true"
             android:text="Nessuna sincronizzazione ancora." />
 
     </LinearLayout>
