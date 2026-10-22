@@ -83,10 +83,14 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
 
             val prefix = if (readOnly) "🔍" else "✓"
             val lines = mutableListOf<String>()
-            yesterdayData.kcalConsumed?.let { lines.add("$prefix ${it}kcal") }
-            todayData.deepSleepMin?.let { lines.add("D ${it}'") }
-            todayData.remSleepMin?.let { lines.add("R ${it}'") }
-            val msg = if (lines.isEmpty()) "$prefix Nessun dato" else lines.joinToString("\n")
+            lines.add("$prefix $ts")
+            yesterdayData.kcalConsumed?.let { lines.add("${it} kcal") }
+            val sleepLine = listOfNotNull(
+                todayData.deepSleepMin?.let { "D ${it}'" },
+                todayData.remSleepMin?.let { "R ${it}'" }
+            ).joinToString(" • ")
+            if (sleepLine.isNotEmpty()) lines.add(sleepLine)
+            val msg = lines.joinToString("\n")
 
             val finalMsg = msg.trim()
             Prefs.set(ctx, Prefs.KEY_LAST_RESULT, finalMsg)
