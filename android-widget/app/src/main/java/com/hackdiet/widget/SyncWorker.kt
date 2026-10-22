@@ -81,13 +81,12 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 append(debugLog.toString().trimEnd())
             }
 
-            val msg = buildString {
-                append(if (readOnly) "🔍 " else "✓ ")
-                yesterdayData.kcalConsumed?.let { append("${it}kcal ") }
-                todayData.deepSleepMin?.let { append("D${it}' ") }
-                todayData.remSleepMin?.let { append("R${it}'") }
-                if (length <= 2) append("Nessun dato")
-            }
+            val prefix = if (readOnly) "🔍" else "✓"
+            val lines = mutableListOf<String>()
+            yesterdayData.kcalConsumed?.let { lines.add("$prefix ${it}kcal") }
+            todayData.deepSleepMin?.let { lines.add("D ${it}'") }
+            todayData.remSleepMin?.let { lines.add("R ${it}'") }
+            val msg = if (lines.isEmpty()) "$prefix Nessun dato" else lines.joinToString("\n")
 
             val finalMsg = msg.trim()
             Prefs.set(ctx, Prefs.KEY_LAST_RESULT, finalMsg)

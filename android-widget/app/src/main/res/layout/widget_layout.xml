@@ -26,19 +26,18 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="HD-RM Sync"
-            android:textSize="12sp"
+            android:textSize="11sp"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
-            android:singleLine="true" />
+            android:lineSpacingMultiplier="1.1" />
 
         <TextView
             android:id="@+id/tv_last"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text=""
-            android:textSize="10sp"
-            android:textColor="#CCFFFFFF"
-            android:singleLine="true" />
+            android:textSize="9sp"
+            android:textColor="#AAFFFFFF" />
 
     </LinearLayout>
 
