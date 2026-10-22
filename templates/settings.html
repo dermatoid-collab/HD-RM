@@ -61,6 +61,75 @@
 
 <table class="trendan" style="width:100%; max-width:560px;">
   <thead>
+    <tr><th class="custitle" colspan="2">Garmin Personal API Key</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td colspan="2" style="padding:10px 16px;">
+        <p style="font-size:0.82rem; color:#555; margin:0 0 10px;">
+          La key viene salvata <strong>cifrata</strong> nel database.
+          {% if garmin_key_configured %}
+          <span style="color:#007700;">✓ Key configurata.</span>
+          {% endif %}
+        </p>
+        <table style="border-collapse:collapse;">
+          <tr>
+            <td style="padding:4px 8px 4px 0; font-size:0.85rem;">API Key:</td>
+            <td style="padding:4px 0;">
+              <input type="password" id="garmin_api_key_input"
+                placeholder="{% if garmin_key_configured %}(configurata — incolla per aggiornare){% else %}Incolla la key Garmin{% endif %}"
+                style="font-size:0.85rem; padding:3px 6px; border:1px solid #999; width:260px;">
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2" style="padding:8px 0 4px; display:flex; gap:8px;">
+              <button type="button" onclick="garminKeySave()" class="btn-settings">Salva</button>
+              <button type="button" onclick="garminKeyTest()" class="btn-settings-secondary" style="margin-left:8px;">Test connessione</button>
+            </td>
+          </tr>
+        </table>
+        <p id="garmin_key_result" style="font-size:0.83rem; margin:8px 0 0; display:none;"></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<script>
+function garminKeySave() {
+  const key = document.getElementById('garmin_api_key_input').value.trim();
+  if (!key) { alert('Inserisci la key prima di salvare.'); return; }
+  fetch('{{ url_for("settings_garmin_key_save") }}', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'garmin_api_key=' + encodeURIComponent(key)
+  }).then(r => r.json()).then(d => {
+    const el = document.getElementById('garmin_key_result');
+    el.style.display = 'block';
+    el.style.color = d.ok ? '#007700' : '#cc0000';
+    el.textContent = d.msg;
+  });
+}
+function garminKeyTest() {
+  const key = document.getElementById('garmin_api_key_input').value.trim();
+  const el = document.getElementById('garmin_key_result');
+  el.style.display = 'block';
+  el.style.color = '#555';
+  el.textContent = 'Test in corso…';
+  fetch('{{ url_for("settings_garmin_key_test") }}', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'garmin_api_key=' + encodeURIComponent(key)
+  }).then(r => r.json()).then(d => {
+    el.style.color = d.ok ? '#007700' : '#cc0000';
+    el.textContent = d.msg;
+  });
+}
+</script>
+
+<br>
+
+<table class="trendan" style="width:100%; max-width:560px;">
+  <thead>
     <tr><th class="custitle" colspan="2">Diet Calculator</th></tr>
   </thead>
   <tbody>

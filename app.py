@@ -5,6 +5,8 @@ import os
 import threading
 from datetime import date, timedelta, datetime
 import calendar
+import base64
+import hashlib
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production-please")
@@ -80,6 +82,30 @@ def set_config(key, value):
     db.execute("INSERT INTO config (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
     db.commit()
     db.close()
+
+
+def _fernet_key():
+    """Derives a Fernet-compatible key from HACKDIET_SECRET env var."""
+    secret = os.environ.get("HACKDIET_SECRET", "hackdiet-default-insecure-key")
+    return base64.urlsafe_b64encode(hashlib.sha256(secret.encode()).digest())
+
+
+def encrypt_value(plaintext):
+    try:
+        from cryptography.fernet import Fernet
+        f = Fernet(_fernet_key())
+        return f.encrypt(plaintext.encode()).decode()
+    except ImportError:
+        return plaintext  # fallback: plain (with warning logged)
+
+
+def decrypt_value(ciphertext):
+    try:
+        from cryptography.fernet import Fernet
+        f = Fernet(_fernet_key())
+        return f.decrypt(ciphertext.encode()).decode()
+    except Exception:
+        return ""
 
 
 def get_plan_overlay(date_list):
@@ -630,13 +656,15 @@ def settings_view():
         garmin_key_warning = days_left <= 7
     except Exception:
         pass
+    garmin_key_configured = bool(get_config("garmin_api_key_enc", ""))
     return render_template("settings.html", active_tab='settings',
         garmin_email=garmin_email, last_sync=last_sync, sync_error=sync_error,
         plan=plan,
         dropbox_configured=dropbox_configured, dropbox_last_sync=dropbox_last_sync,
         dropbox_sync_error=dropbox_sync_error,
         garmin_key_expiry=garmin_key_expiry,
-        garmin_key_warning=garmin_key_warning)
+        garmin_key_warning=garmin_key_warning,
+        garmin_key_configured=garmin_key_configured)
 
 
 @app.route("/settings/garmin", methods=["POST"])
@@ -762,6 +790,48 @@ def settings_plan_delete():
         db.execute("DELETE FROM config WHERE key=?", (k,))
     db.commit()
     return redirect(url_for("settings_view"))
+
+
+@app.route("/settings/garmin-key/save", methods=["POST"])
+@login_required
+def settings_garmin_key_save():
+    from flask import jsonify
+    key = request.form.get("garmin_api_key", "").strip()
+    if not key:
+        return jsonify({"ok": False, "msg": "Key vuota"})
+    encrypted = encrypt_value(key)
+    set_config("garmin_api_key_enc", encrypted)
+    return jsonify({"ok": True, "msg": "Key salvata (cifrata)"})
+
+
+@app.route("/settings/garmin-key/test", methods=["POST"])
+@login_required
+def settings_garmin_key_test():
+    from flask import jsonify
+    import requests as req
+    # permette di testare una key appena inserita (non ancora salvata)
+    raw_key = request.form.get("garmin_api_key", "").strip()
+    if not raw_key:
+        enc = get_config("garmin_api_key_enc", "")
+        if not enc:
+            return jsonify({"ok": False, "msg": "Nessuna key configurata"})
+        raw_key = decrypt_value(enc)
+        if not raw_key:
+            return jsonify({"ok": False, "msg": "Impossibile decifrare la key (HACKDIET_SECRET mancante?)"})
+    token_url = (
+        "https://personal.connectapi.garmin.com"
+        "/personalapitoken-service/personal-api/personal-api-key/token"
+    )
+    try:
+        r = req.post(token_url, headers={"Authorization": f"ApiKey {raw_key}"}, timeout=10)
+        if r.status_code == 200:
+            token = r.text.strip() or (r.json().get("access_token") if r.text.strip().startswith("{") else "")
+            if token:
+                return jsonify({"ok": True, "msg": f"✓ Token ottenuto (HTTP 200)"})
+            return jsonify({"ok": True, "msg": "HTTP 200 (token nel body)"})
+        return jsonify({"ok": False, "msg": f"HTTP {r.status_code}: {r.text[:200]}"})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"Errore: {e}"})
 
 
 @app.route("/settings/garmin/test")
