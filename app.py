@@ -809,7 +809,6 @@ def settings_garmin_key_save():
 def settings_garmin_key_test():
     from flask import jsonify
     import requests as req
-    # permette di testare una key appena inserita (non ancora salvata)
     raw_key = request.form.get("garmin_api_key", "").strip()
     if not raw_key:
         enc = get_config("garmin_api_key_enc", "")
@@ -822,14 +821,46 @@ def settings_garmin_key_test():
         "https://personal.connectapi.garmin.com"
         "/personalapitoken-service/personal-api/personal-api-key/token"
     )
+    base_url = "https://personal.connectapi.garmin.com"
     try:
         r = req.post(token_url, headers={"Authorization": f"ApiKey {raw_key}"}, timeout=10)
-        if r.status_code == 200:
-            token = r.text.strip() or (r.json().get("access_token") if r.text.strip().startswith("{") else "")
-            if token:
-                return jsonify({"ok": True, "msg": f"✓ Token ottenuto (HTTP 200)"})
-            return jsonify({"ok": True, "msg": "HTTP 200 (token nel body)"})
-        return jsonify({"ok": False, "msg": f"HTTP {r.status_code}: {r.text[:200]}"})
+        if r.status_code != 200:
+            return jsonify({"ok": False, "msg": f"Auth fallita — HTTP {r.status_code}: {r.text[:200]}"})
+        try:
+            token = r.json().get("access_token") or r.json().get("token") or r.json().get("accessToken")
+        except Exception:
+            token = r.text.strip()
+        if not token:
+            return jsonify({"ok": False, "msg": "Token non trovato nella risposta"})
+
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        headers = {"Authorization": f"Bearer {token}"}
+        lines = [f"✓ Autenticazione OK — dati di ieri ({yesterday}):"]
+
+        # kcal + RHR
+        rs = req.get(f"{base_url}/daily-service/daily/summaries/{yesterday}", headers=headers, timeout=10)
+        if rs.status_code == 200:
+            d = rs.json()
+            kcal = d.get("totalKilocalories") or d.get("consumedKilocalories") or d.get("activeKilocalories")
+            rhr  = d.get("restingHeartRate") or d.get("averageRestingHeartRate")
+            lines.append(f"  Kcal: {int(kcal) if kcal else 'n/d'}")
+            lines.append(f"  RHR:  {int(rhr) if rhr else 'n/d'} bpm")
+        else:
+            lines.append(f"  Summary: HTTP {rs.status_code}")
+
+        # sonno
+        rsl = req.get(f"{base_url}/sleep-service/sleep/{yesterday}", headers=headers, timeout=10)
+        if rsl.status_code == 200:
+            sd = rsl.json()
+            dto = sd.get("dailySleepDTO") or sd
+            deep  = dto.get("deepSleepSeconds",  0) or 0
+            rem   = dto.get("remSleepSeconds",   0) or 0
+            lines.append(f"  Deep: {round(deep/60) if deep else 'n/d'} min")
+            lines.append(f"  REM:  {round(rem/60) if rem else 'n/d'} min")
+        else:
+            lines.append(f"  Sleep: HTTP {rsl.status_code}")
+
+        return jsonify({"ok": True, "msg": "\n".join(lines)})
     except Exception as e:
         return jsonify({"ok": False, "msg": f"Errore: {e}"})
 
