@@ -62,11 +62,18 @@
             android:text="Salva" />
 
         <Button
+            android:id="@+id/btn_read"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="🔍 Leggi dati da Garmin" />
+
+        <Button
             android:id="@+id/btn_sync"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="32dp"
-            android:text="▶ Sincronizza ora" />
+            android:text="▶ Sincronizza ora → Intervals" />
 
         <TextView
             android:layout_width="match_parent"

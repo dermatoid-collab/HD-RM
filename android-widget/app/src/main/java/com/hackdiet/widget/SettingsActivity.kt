@@ -11,10 +11,12 @@ import android.widget.Toast
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 
 class SettingsActivity : Activity() {
 
     private lateinit var tvLog: TextView
+    private lateinit var btnRead: Button
     private lateinit var btnSync: Button
     private val handler = Handler(Looper.getMainLooper())
 
@@ -26,6 +28,7 @@ class SettingsActivity : Activity() {
         val etIntervalsKey = findViewById<EditText>(R.id.et_intervals_key)
         val etAthleteId = findViewById<EditText>(R.id.et_athlete_id)
         val btnSave = findViewById<Button>(R.id.btn_save)
+        btnRead = findViewById(R.id.btn_read)
         btnSync = findViewById(R.id.btn_sync)
         tvLog = findViewById(R.id.tv_log)
 
@@ -52,12 +55,20 @@ class SettingsActivity : Activity() {
             Toast.makeText(this, "Salvato", Toast.LENGTH_SHORT).show()
         }
 
+        btnRead.setOnClickListener {
+            if (!Prefs.isConfigured(this)) {
+                Toast.makeText(this, "Salva prima le credenziali", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            startWorker(readOnly = true)
+        }
+
         btnSync.setOnClickListener {
             if (!Prefs.isConfigured(this)) {
                 Toast.makeText(this, "Salva prima le credenziali", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            startSync()
+            startWorker(readOnly = false)
         }
     }
 
@@ -76,32 +87,35 @@ class SettingsActivity : Activity() {
         tvLog.text = if (log.isBlank()) "Nessuna sincronizzazione ancora." else log
     }
 
-    private fun startSync() {
-        btnSync.isEnabled = false
-        btnSync.text = "⏳ In corso…"
-        Prefs.set(this, Prefs.KEY_LAST_RESULT, "⏳ Sync in corso…")
+    private fun startWorker(readOnly: Boolean) {
+        val btn = if (readOnly) btnRead else btnSync
+        btn.isEnabled = false
+        btn.text = "⏳ In corso…"
+        Prefs.set(this, Prefs.KEY_LAST_RESULT, "⏳ In corso…")
         SyncWidget.updateAll(this)
 
-        val req = OneTimeWorkRequestBuilder<SyncWorker>().build()
+        val req = OneTimeWorkRequestBuilder<SyncWorker>()
+            .setInputData(workDataOf(SyncWorker.KEY_READ_ONLY to readOnly))
+            .build()
         WorkManager.getInstance(this).enqueue(req)
 
-        pollWorkState(req.id)
+        pollWorkState(req.id, btn, if (readOnly) "🔍 Leggi dati da Garmin" else "▶ Sincronizza ora → Intervals")
     }
 
-    private fun pollWorkState(id: java.util.UUID) {
+    private fun pollWorkState(id: java.util.UUID, btn: Button, originalLabel: String) {
         handler.postDelayed({
             val info = try {
                 WorkManager.getInstance(this).getWorkInfoById(id).get()
             } catch (_: Exception) { null }
 
             if (info != null && info.state.isFinished) {
-                btnSync.isEnabled = true
-                btnSync.text = "▶ Sincronizza ora"
+                btn.isEnabled = true
+                btn.text = originalLabel
                 refreshLog()
                 val result = Prefs.get(this, Prefs.KEY_LAST_RESULT, "")
                 Toast.makeText(this, result, Toast.LENGTH_LONG).show()
             } else {
-                pollWorkState(id)
+                pollWorkState(id, btn, originalLabel)
             }
         }, 2000)
     }
