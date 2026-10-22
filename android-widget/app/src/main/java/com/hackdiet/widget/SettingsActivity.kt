@@ -2,11 +2,21 @@ package com.hackdiet.widget
 
 import android.app.Activity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 
 class SettingsActivity : Activity() {
+
+    private lateinit var tvLog: TextView
+    private lateinit var btnSync: Button
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -16,10 +26,10 @@ class SettingsActivity : Activity() {
         val etIntervalsKey = findViewById<EditText>(R.id.et_intervals_key)
         val etAthleteId = findViewById<EditText>(R.id.et_athlete_id)
         val btnSave = findViewById<Button>(R.id.btn_save)
-        val tvLog = findViewById<android.widget.TextView>(R.id.tv_log)
+        btnSync = findViewById(R.id.btn_sync)
+        tvLog = findViewById(R.id.tv_log)
 
-        val log = Prefs.get(this, Prefs.KEY_LOG, "")
-        tvLog.text = if (log.isBlank()) "Nessuna sincronizzazione ancora." else log
+        refreshLog()
 
         etGarminKey.setText(Prefs.get(this, Prefs.KEY_GARMIN_API_KEY))
         etIntervalsKey.setText(Prefs.get(this, Prefs.KEY_INTERVALS_API_KEY))
@@ -40,7 +50,59 @@ class SettingsActivity : Activity() {
             Prefs.set(this, Prefs.KEY_INTERVALS_ATHLETE_ID, athleteId)
 
             Toast.makeText(this, "Salvato", Toast.LENGTH_SHORT).show()
-            finish()
         }
+
+        btnSync.setOnClickListener {
+            if (!Prefs.isConfigured(this)) {
+                Toast.makeText(this, "Salva prima le credenziali", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            startSync()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshLog()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        handler.removeCallbacksAndMessages(null)
+    }
+
+    private fun refreshLog() {
+        val log = Prefs.get(this, Prefs.KEY_LOG, "")
+        tvLog.text = if (log.isBlank()) "Nessuna sincronizzazione ancora." else log
+    }
+
+    private fun startSync() {
+        btnSync.isEnabled = false
+        btnSync.text = "⏳ In corso…"
+        Prefs.set(this, Prefs.KEY_LAST_RESULT, "⏳ Sync in corso…")
+        SyncWidget.updateAll(this)
+
+        val req = OneTimeWorkRequestBuilder<SyncWorker>().build()
+        WorkManager.getInstance(this).enqueue(req)
+
+        pollWorkState(req.id)
+    }
+
+    private fun pollWorkState(id: java.util.UUID) {
+        handler.postDelayed({
+            val info = try {
+                WorkManager.getInstance(this).getWorkInfoById(id).get()
+            } catch (_: Exception) { null }
+
+            if (info != null && info.state.isFinished) {
+                btnSync.isEnabled = true
+                btnSync.text = "▶ Sincronizza ora"
+                refreshLog()
+                val result = Prefs.get(this, Prefs.KEY_LAST_RESULT, "")
+                Toast.makeText(this, result, Toast.LENGTH_LONG).show()
+            } else {
+                pollWorkState(id)
+            }
+        }, 2000)
     }
 }
