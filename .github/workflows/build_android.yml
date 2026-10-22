@@ -1,0 +1,51 @@
+name: Build Android Widget APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android-widget/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Download gradle-wrapper.jar
+        run: |
+          mkdir -p android-widget/gradle/wrapper
+          curl -fsSL -o android-widget/gradle/wrapper/gradle-wrapper.jar \
+            "https://repo.gradle.org/gradle/libs-releases/org/gradle/gradle-wrapper/8.7/gradle-wrapper-8.7.jar" \
+            || curl -fsSL -o android-widget/gradle/wrapper/gradle-wrapper.jar \
+            "https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradle/wrapper/gradle-wrapper.jar"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('android-widget/**/*.gradle.kts', 'android-widget/gradle/libs.versions.toml') }}
+          restore-keys: gradle-
+
+      - name: Build debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+        working-directory: android-widget
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hackdiet-widget-debug
+          path: android-widget/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
