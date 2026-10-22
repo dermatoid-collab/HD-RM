@@ -33,22 +33,33 @@ object GarminApi {
         val rhr: Int?
     )
 
-    fun getDayData(token: String, date: LocalDate): DayData {
-        val ds = date.toString()
-        val authHeader = "Bearer $token"
-
-        // Daily summary — returns { "data": [ { active_kilocalories, bmr_kilocalories, resting_heart_rate, … } ] }
-        val summaryUrl = "$BASE/usersummary-service/v2/dailysummaries?startDate=$ds&endDate=$ds"
-        val summaryReq = Request.Builder()
-            .url(summaryUrl)
-            .header("Authorization", authHeader)
+    // Loggato nel sync log per debug — mostra URL, status HTTP e primi 500 char del body
+    private fun fetch(token: String, url: String): Pair<Int, String> {
+        val req = Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer $token")
             .header("Accept", "application/json")
             .build()
+        client.newCall(req).execute().use { resp ->
+            val body = resp.body?.string() ?: ""
+            return Pair(resp.code, body)
+        }
+    }
+
+    fun getDayData(token: String, date: LocalDate, debugLog: StringBuilder): DayData {
+        val ds = date.toString()
+
+        // Daily summary
+        val summaryUrl = "$BASE/usersummary-service/v2/dailysummaries?startDate=$ds&endDate=$ds"
+        val (summaryCode, summaryBody) = fetch(token, summaryUrl)
+        debugLog.appendLine("SUMMARY $ds → HTTP $summaryCode")
+        debugLog.appendLine(summaryBody.take(500))
+
         var kcalConsumed: Int? = null
         var rhr: Int? = null
-        client.newCall(summaryReq).execute().use { resp ->
-            if (resp.isSuccessful) {
-                val root = JSONObject(resp.body?.string() ?: "{}")
+        if (summaryCode in 200..299) {
+            try {
+                val root = JSONObject(summaryBody)
                 val arr = root.optJSONArray("data")
                 val j = if (arr != null && arr.length() > 0) arr.getJSONObject(0) else null
                 if (j != null) {
@@ -58,25 +69,29 @@ object GarminApi {
                     kcalConsumed = if (total > 0) total else null
                     rhr = j.optInt("resting_heart_rate", 0).takeIf { it > 0 }
                 }
+            } catch (e: Exception) {
+                debugLog.appendLine("SUMMARY parse error: ${e.message}")
             }
         }
 
-        // Sleep — returns { deep_sleep_seconds, rem_sleep_seconds, sleep_time_seconds, … }
-        val sleepReq = Request.Builder()
-            .url("$BASE/sleep-service/sleep/dailySleep?date=$ds")
-            .header("Authorization", authHeader)
-            .header("Accept", "application/json")
-            .build()
+        // Sleep
+        val sleepUrl = "$BASE/sleep-service/sleep/dailySleep?date=$ds"
+        val (sleepCode, sleepBody) = fetch(token, sleepUrl)
+        debugLog.appendLine("SLEEP $ds → HTTP $sleepCode")
+        debugLog.appendLine(sleepBody.take(500))
+
         var deepMin: Int? = null
         var remMin: Int? = null
         var totalMin: Int? = null
-        client.newCall(sleepReq).execute().use { resp ->
-            if (resp.isSuccessful) {
-                val j = JSONObject(resp.body?.string() ?: "{}")
+        if (sleepCode in 200..299) {
+            try {
+                val j = JSONObject(sleepBody)
                 fun secs(key: String) = j.optInt(key, 0).takeIf { it > 0 }?.let { it / 60 }
                 deepMin = secs("deep_sleep_seconds")
                 remMin = secs("rem_sleep_seconds")
                 totalMin = secs("sleep_time_seconds") ?: secs("total_sleep_seconds")
+            } catch (e: Exception) {
+                debugLog.appendLine("SLEEP parse error: ${e.message}")
             }
         }
 

@@ -22,11 +22,12 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
 
             // Token Garmin
             val token = GarminApi.getToken(garminKey)
+            val debugLog = StringBuilder()
 
             // kcal consumate di ieri
-            val yesterdayData = GarminApi.getDayData(token, yesterday)
+            val yesterdayData = GarminApi.getDayData(token, yesterday, debugLog)
             // deep + REM di oggi (sonno della notte appena trascorsa)
-            val todayData = GarminApi.getDayData(token, today)
+            val todayData = GarminApi.getDayData(token, today, debugLog)
 
             // PUT ieri: solo kcalConsumed
             if (yesterdayData.kcalConsumed != null) {
@@ -68,7 +69,9 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                     if (todayData.deepSleepMin != null) "deep" else null,
                     if (todayData.remSleepMin != null) "REM" else null
                 ).joinToString("+").ifEmpty { "-" }
-                append("  → inviato: $sentYest | $sentToday")
+                appendLine("  → inviato: $sentYest | $sentToday")
+                appendLine("── HTTP debug ───────")
+                append(debugLog.toString().trimEnd())
             }
 
             val msg = buildString {
