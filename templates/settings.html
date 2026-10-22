@@ -5,6 +5,20 @@
 {% block content %}
 <h1 class="c">Settings</h1>
 
+{% if garmin_key_warning %}
+<div style="background:#fff3cd; border:1px solid #ffc107; border-radius:4px; padding:12px 16px; margin-bottom:16px; max-width:560px; font-size:0.85rem;">
+  <strong>⚠️ Garmin Personal API Key in scadenza</strong><br>
+  La key scade il <strong>{{ garmin_key_expiry }}</strong>. Istruzioni per il rinnovo:
+  <ol style="margin:8px 0 0 16px; padding:0;">
+    <li>Vai su <strong>Garmin Connect</strong> → Impostazioni → Personal API Key</li>
+    <li>Genera una nuova key (scegli durata 1 anno)</li>
+    <li>Vai su <strong>GitHub</strong> → repository <code>dermatoid-collab/hackdiet</code> → Settings → Secrets and variables → Actions</li>
+    <li>Aggiorna il secret <code>GARMIN_PERSONAL_API_KEY</code> con la nuova key</li>
+    <li>Aggiorna la data di scadenza nel database (chiedi a Claude)</li>
+  </ol>
+</div>
+{% endif %}
+
 <table class="trendan" style="width:100%; max-width:560px;">
   <thead>
     <tr><th class="custitle" colspan="2">Dropbox Sync</th></tr>

@@ -623,11 +623,20 @@ def settings_view():
         "start_weight": get_config("plan_start_weight", ""),
         "end_weight": get_config("plan_end_weight", ""),
     }
+    garmin_key_expiry = get_config("garmin_key_expiry", "2027-10-22")
+    garmin_key_warning = False
+    try:
+        days_left = (date.fromisoformat(garmin_key_expiry) - date.today()).days
+        garmin_key_warning = days_left <= 7
+    except Exception:
+        pass
     return render_template("settings.html", active_tab='settings',
         garmin_email=garmin_email, last_sync=last_sync, sync_error=sync_error,
         plan=plan,
         dropbox_configured=dropbox_configured, dropbox_last_sync=dropbox_last_sync,
-        dropbox_sync_error=dropbox_sync_error)
+        dropbox_sync_error=dropbox_sync_error,
+        garmin_key_expiry=garmin_key_expiry,
+        garmin_key_warning=garmin_key_warning)
 
 
 @app.route("/settings/garmin", methods=["POST"])

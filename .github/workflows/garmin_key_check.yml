@@ -1,0 +1,35 @@
+name: Garmin API Key Expiry Check
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # ogni lunedì alle 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check expiry and open issue if needed
+        env:
+          EXPIRY_DATE: '2027-10-22'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TODAY=$(date +%Y-%m-%d)
+          DAYS_LEFT=$(( ( $(date -d "$EXPIRY_DATE" +%s) - $(date -d "$TODAY" +%s) ) / 86400 ))
+          echo "Giorni alla scadenza: $DAYS_LEFT"
+          if [ "$DAYS_LEFT" -le 7 ] && [ "$DAYS_LEFT" -ge 0 ]; then
+            gh issue create \
+              --repo dermatoid-collab/hackdiet \
+              --title "⚠️ Garmin Personal API Key scade il $EXPIRY_DATE ($DAYS_LEFT giorni)" \
+              --body "## Azione richiesta
+
+La **Garmin Personal API Key** scade il **$EXPIRY_DATE** ($DAYS_LEFT giorni).
+
+### Istruzioni per il rinnovo
+
+1. Vai su [Garmin Connect](https://connect.garmin.com) → Impostazioni → Personal API Key
+2. Genera una nuova key (scegli durata **1 anno**)
+3. Vai su GitHub → [repository hackdiet](https://github.com/dermatoid-collab/hackdiet) → Settings → Secrets and variables → Actions
+4. Aggiorna il secret \`GARMIN_PERSONAL_API_KEY\` con la nuova key
+5. Chiedi a Claude di aggiornare la data di scadenza nel database (\`garmin_key_expiry\`)"
+          fi
