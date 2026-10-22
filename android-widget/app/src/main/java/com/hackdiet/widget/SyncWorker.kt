@@ -25,6 +25,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             val yesterday = today.minusDays(1)
             val now = LocalDateTime.now()
 
+            val sleepFormat = Prefs.get(ctx, Prefs.KEY_SLEEP_FORMAT, "hm")
             val token = GarminApi.getToken(garminKey)
             val debugLog = StringBuilder()
 
@@ -51,7 +52,8 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                         date = today,
                         kcalConsumed = null,
                         deepSleepMin = todayData.deepSleepMin,
-                        remSleepMin = todayData.remSleepMin
+                        remSleepMin = todayData.remSleepMin,
+                        sleepFormat = sleepFormat
                     )
                 }
             }
@@ -74,7 +76,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 appendLine("  deep = ${todayData.deepSleepMin?.let { "${it}'" } ?: "null"}")
                 appendLine("  REM  = ${todayData.remSleepMin?.let { "${it}'" } ?: "null"}")
                 appendLine("  tot  = ${todayData.totalSleepMin?.let { "${it}'" } ?: "null"}")
-                appendLine("  → $sentLabel")
+                appendLine("  → $sentLabel (formato: $sleepFormat)")
                 appendLine("── HTTP debug ───────")
                 append(debugLog.toString().trimEnd())
             }

@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Button
 import android.widget.EditText
+import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.work.OneTimeWorkRequestBuilder
@@ -31,6 +32,14 @@ class SettingsActivity : Activity() {
         btnRead = findViewById(R.id.btn_read)
         btnSync = findViewById(R.id.btn_sync)
         tvLog = findViewById(R.id.tv_log)
+        val rgSleepFormat = findViewById<RadioGroup>(R.id.rg_sleep_format)
+
+        // Ripristina selezione formato sonno
+        val savedFormat = Prefs.get(this, Prefs.KEY_SLEEP_FORMAT, "hm")
+        rgSleepFormat.check(if (savedFormat == "min") R.id.rb_min else R.id.rb_hm)
+        rgSleepFormat.setOnCheckedChangeListener { _, checkedId ->
+            Prefs.set(this, Prefs.KEY_SLEEP_FORMAT, if (checkedId == R.id.rb_min) "min" else "hm")
+        }
 
         refreshLog()
 

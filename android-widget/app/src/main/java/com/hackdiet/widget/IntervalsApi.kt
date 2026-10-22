@@ -13,18 +13,22 @@ object IntervalsApi {
     private val JSON = "application/json".toMediaType()
     private const val BASE = "https://intervals.icu/api/v1"
 
+    private fun formatSleep(minutes: Int, format: String): Any =
+        if (format == "hm") "${minutes / 60}h${minutes % 60}m" else minutes
+
     fun putWellness(
         apiKey: String,
         athleteId: String,
         date: LocalDate,
         kcalConsumed: Int?,
         deepSleepMin: Int?,
-        remSleepMin: Int?
+        remSleepMin: Int?,
+        sleepFormat: String = "hm"
     ) {
         val body = JSONObject().apply {
             kcalConsumed?.let { put("kcalConsumed", it) }
-            deepSleepMin?.let { put("DeepSleep", it) }
-            remSleepMin?.let { put("REMSleep", it) }
+            deepSleepMin?.let { put("DeepSleep", formatSleep(it, sleepFormat)) }
+            remSleepMin?.let { put("REMSleep", formatSleep(it, sleepFormat)) }
         }
         if (body.length() == 0) throw Exception("Nessun dato da inviare")
 

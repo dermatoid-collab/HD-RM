@@ -12,6 +12,7 @@ object Prefs {
     const val KEY_LAST_SYNC = "last_sync"
     const val KEY_LAST_RESULT = "last_result"
     const val KEY_LOG = "sync_log"
+    const val KEY_SLEEP_FORMAT = "sleep_format"  // "hm" | "min"
     private const val MAX_LOG_LINES = 50
 
     private fun prefs(ctx: Context) = EncryptedSharedPreferences.create(

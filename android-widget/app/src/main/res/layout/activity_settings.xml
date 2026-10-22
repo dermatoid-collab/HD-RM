@@ -61,6 +61,35 @@
             android:layout_marginBottom="8dp"
             android:text="Salva" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Formato sonno per Intervals.icu"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
+
+        <RadioGroup
+            android:id="@+id/rg_sleep_format"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="24dp">
+
+            <RadioButton
+                android:id="@+id/rb_hm"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Testo: 1h1m  (campo text su Intervals)" />
+
+            <RadioButton
+                android:id="@+id/rb_min"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Minuti interi: 61" />
+
+        </RadioGroup>
+
         <Button
             android:id="@+id/btn_read"
             android:layout_width="match_parent"
