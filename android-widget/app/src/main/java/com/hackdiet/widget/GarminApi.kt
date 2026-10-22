@@ -63,12 +63,11 @@ object GarminApi {
                 val arr = root.optJSONArray("data")
                 val j = if (arr != null && arr.length() > 0) arr.getJSONObject(0) else null
                 if (j != null) {
-                    // API returns camelCase field names
-                    val active = j.optInt("activeKilocalories", 0)
-                    val bmr = j.optInt("bmrKilocalories", 0)
-                    val total = active + bmr
-                    kcalConsumed = if (total > 0) total else null
-                    rhr = j.optInt("restingHeartRate", 0).takeIf { it > 0 }
+                    // calories and heartRate are nested objects
+                    val cal = j.optJSONObject("calories")
+                    kcalConsumed = cal?.optInt("consumedValue", 0)?.takeIf { it > 0 }
+                    val hr = j.optJSONObject("heartRate")
+                    rhr = hr?.optInt("restingValue", 0)?.takeIf { it > 0 }
                 }
             } catch (e: Exception) {
                 debugLog.appendLine("SUMMARY parse error: ${e.message}")
