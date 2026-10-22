@@ -82,13 +82,16 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             }
 
             val prefix = if (readOnly) "🔍" else "✓"
+            val datePart = now.format(DateTimeFormatter.ofPattern("dd/MM"))
+            val timePart = now.format(DateTimeFormatter.ofPattern("HH:mm"))
             val lines = mutableListOf<String>()
-            lines.add("$prefix $ts")
+            lines.add("$prefix $datePart")
+            lines.add(timePart)
             yesterdayData.kcalConsumed?.let { lines.add("${it} kcal") }
             val sleepLine = listOfNotNull(
                 todayData.deepSleepMin?.let { "D ${it}'" },
                 todayData.remSleepMin?.let { "R ${it}'" }
-            ).joinToString(" • ")
+            ).joinToString("•")
             if (sleepLine.isNotEmpty()) lines.add(sleepLine)
             val msg = lines.joinToString("\n")
 
