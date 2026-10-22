@@ -48,6 +48,9 @@ def sync_kcal(garmin):
                     print(f"  {ds}: {int(kcal)} kcal (attive={int(active)}, BMR={int(bmr)})")
                 else:
                     print(f"  {ds}: kcal zero o assenti")
+                # debug: stampa tutti gli attr con "calori" nel nome
+                cal_attrs = {a: getattr(data, a) for a in dir(data) if 'calori' in a.lower() and not a.startswith('_')}
+                print(f"  {ds} calorie attrs: {cal_attrs}")
         except Exception as e:
             print(f"  {ds}: errore kcal - {e}")
         cur += timedelta(days=1)
