@@ -52,26 +52,44 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 )
             }
 
+            val ts = now.format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
+
+            val detail = buildString {
+                appendLine("── $ts ──────────────")
+                appendLine("ieri ($yesterday):")
+                appendLine("  kcal = ${yesterdayData.kcalConsumed ?: "null"}")
+                appendLine("  RHR  = ${yesterdayData.rhr ?: "null"}")
+                appendLine("oggi ($today):")
+                appendLine("  deep = ${todayData.deepSleepMin?.let { "${it}'" } ?: "null"}")
+                appendLine("  REM  = ${todayData.remSleepMin?.let { "${it}'" } ?: "null"}")
+                appendLine("  tot  = ${todayData.totalSleepMin?.let { "${it}'" } ?: "null"}")
+                val sentYest = if (yesterdayData.kcalConsumed != null) "kcal→ieri" else "-"
+                val sentToday = listOfNotNull(
+                    if (todayData.deepSleepMin != null) "deep" else null,
+                    if (todayData.remSleepMin != null) "REM" else null
+                ).joinToString("+").ifEmpty { "-" }
+                append("  → inviato: $sentYest | $sentToday")
+            }
+
             val msg = buildString {
                 append("✓ ")
-                yesterdayData.kcalConsumed?.let { append("${it} kcal · ") }
+                yesterdayData.kcalConsumed?.let { append("${it}kcal ") }
                 todayData.deepSleepMin?.let { append("D${it}' ") }
                 todayData.remSleepMin?.let { append("R${it}'") }
                 if (isEmpty()) append("Nessun dato")
             }
 
-            val ts = now.format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
             val finalMsg = msg.trim()
             Prefs.set(ctx, Prefs.KEY_LAST_RESULT, finalMsg)
             Prefs.set(ctx, Prefs.KEY_LAST_SYNC, ts)
-            Prefs.appendLog(ctx, "$ts  $finalMsg")
+            Prefs.appendLog(ctx, detail)
             SyncWidget.updateAll(ctx)
             Result.success()
         } catch (e: Exception) {
             val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
             val errMsg = "✗ ${e.message?.take(80)}"
             Prefs.set(ctx, Prefs.KEY_LAST_RESULT, errMsg)
-            Prefs.appendLog(ctx, "$ts  $errMsg")
+            Prefs.appendLog(ctx, "── $ts ──────────────\n  ERRORE: ${e.message?.take(200)}")
             SyncWidget.updateAll(ctx)
             Result.failure()
         }
