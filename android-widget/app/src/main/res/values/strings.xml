@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">HackDiet Sync</string>
+    <string name="app_name">HD-RM Sync</string>
     <string name="widget_description">Sync Garmin → Intervals.icu con un tap</string>
 </resources>
