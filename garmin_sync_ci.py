@@ -39,14 +39,15 @@ def sync_kcal(garmin):
         try:
             data = garmin.get_daily_summary(ds)
             if data:
-                kcal = _attr(data,
-                    "totalKilocalories", "consumedKilocalories",
-                    "activeKilocalories", "totalCalories")
+                # attributi snake_case della dataclass UserDailySummary
+                active = _attr(data, "active_kilocalories", default=0) or 0
+                bmr    = _attr(data, "bmr_kilocalories",    default=0) or 0
+                kcal   = (active + bmr) if (active or bmr) else None
                 if kcal and int(kcal) > 0:
                     kcal_map[ds] = int(kcal)
-                    print(f"  {ds}: {int(kcal)} kcal")
+                    print(f"  {ds}: {int(kcal)} kcal (attive={int(active)}, BMR={int(bmr)})")
                 else:
-                    print(f"  {ds}: kcal non trovate — oggetto: {type(data).__name__}, attrs: {[a for a in dir(data) if not a.startswith('_')][:15]}")
+                    print(f"  {ds}: kcal zero o assenti")
         except Exception as e:
             print(f"  {ds}: errore kcal - {e}")
         cur += timedelta(days=1)
@@ -62,18 +63,17 @@ def sync_sleep(garmin):
         ds = cur.isoformat()
         try:
             summary = garmin.get_daily_summary(ds)
-            rhr = _attr(summary, "restingHeartRate", "averageRestingHeartRate") if summary else None
+            rhr = _attr(summary, "resting_heart_rate", "restingHeartRate") if summary else None
 
             sleep = garmin.get_daily_sleep(ds)
             entry = {}
             if sleep:
-                # get_daily_sleep può restituire l'oggetto direttamente o con un wrapper
-                dto = _attr(sleep, "dailySleepDTO") or sleep
-                deep  = _attr(dto, "deepSleepSeconds",  default=0) or 0
-                rem   = _attr(dto, "remSleepSeconds",   default=0) or 0
-                light = _attr(dto, "lightSleepSeconds", default=0) or 0
-                total = _attr(dto, "sleepTimeSeconds", "totalSleepSeconds", default=0) or 0
-                awake = _attr(dto, "awakeSleepSeconds", default=0) or 0
+                # attributi snake_case della dataclass DailySleepDTO
+                deep  = _attr(sleep, "deep_sleep_seconds",  default=0) or 0
+                rem   = _attr(sleep, "rem_sleep_seconds",   default=0) or 0
+                light = _attr(sleep, "light_sleep_seconds", default=0) or 0
+                total = _attr(sleep, "sleep_time_seconds", "total_sleep_seconds", default=0) or 0
+                awake = _attr(sleep, "awake_sleep_seconds", default=0) or 0
                 if total:
                     entry["total"] = round(total / 60)
                 if deep:
@@ -84,8 +84,6 @@ def sync_sleep(garmin):
                     entry["light"] = round(light / 60)
                 if awake:
                     entry["awake"] = round(awake / 60)
-                if not entry:
-                    print(f"  {ds}: sleep attrs: {[a for a in dir(dto) if not a.startswith('_')][:15]}")
 
             if rhr:
                 entry["rhr"] = int(rhr)
