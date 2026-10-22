@@ -91,7 +91,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             val sleepLine = listOfNotNull(
                 todayData.deepSleepMin?.let { "D ${it}'" },
                 todayData.remSleepMin?.let { "R ${it}'" }
-            ).joinToString("•")
+            ).joinToString(" • ")
             if (sleepLine.isNotEmpty()) lines.add(sleepLine)
             val msg = lines.joinToString("\n")
 
