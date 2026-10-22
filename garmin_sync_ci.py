@@ -8,54 +8,14 @@ import os
 import requests
 from datetime import date, timedelta
 
+from gcpapi_sync import GarminClient
+
 DROPBOX_KCAL_PATH = "/hackdiet_kcal.json"
 DROPBOX_SLEEP_PATH = "/hackdiet_sleep.json"
 DAYS_BACK = int(os.environ.get("DAYS_BACK", 7))
 
-GARMIN_TOKEN_URL = (
-    "https://personal.connectapi.garmin.com"
-    "/personalapitoken-service/personal-api/personal-api-key/token"
-)
-GARMIN_BASE_URL = "https://personal.connectapi.garmin.com"
 
-
-def garmin_get_token():
-    api_key = os.environ["GARMIN_PERSONAL_API_KEY"]
-    r = requests.post(
-        GARMIN_TOKEN_URL,
-        headers={"Authorization": f"ApiKey {api_key}"},
-        timeout=15,
-    )
-    print(f"Token endpoint HTTP {r.status_code}")
-    r.raise_for_status()
-    try:
-        data = r.json()
-        token = data.get("access_token") or data.get("token") or data.get("accessToken")
-        if not token:
-            raise ValueError(f"Token non trovato nella risposta JSON: {list(data.keys())}")
-    except Exception:
-        # il server risponde con il token come stringa grezza (non JSON)
-        token = r.text.strip()
-        if not token:
-            raise ValueError("Token endpoint ha restituito corpo vuoto")
-    print("Token Garmin ottenuto.")
-    return token
-
-
-def garmin_get(token, path, params=None):
-    r = requests.get(
-        f"{GARMIN_BASE_URL}{path}",
-        headers={"Authorization": f"Bearer {token}"},
-        params=params,
-        timeout=30,
-    )
-    if r.status_code == 200:
-        return r.json()
-    print(f"  Garmin {path} → HTTP {r.status_code}")
-    return None
-
-
-def sync_kcal(token):
+def sync_kcal(garmin):
     end = date.today()
     start = end - timedelta(days=DAYS_BACK)
     kcal_map = {}
@@ -63,9 +23,8 @@ def sync_kcal(token):
     while cur <= end:
         ds = cur.isoformat()
         try:
-            data = garmin_get(token, f"/daily-service/daily/summaries/{ds}")
+            data = garmin.get_daily_summary(ds)
             if data:
-                # prova i campi più probabili per kcal consumate
                 kcal = (
                     data.get("totalKilocalories")
                     or data.get("consumedKilocalories")
@@ -83,7 +42,7 @@ def sync_kcal(token):
     return kcal_map
 
 
-def sync_sleep(token):
+def sync_sleep(garmin):
     end = date.today()
     start = end - timedelta(days=DAYS_BACK)
     sleep_map = {}
@@ -91,8 +50,7 @@ def sync_sleep(token):
     while cur <= end:
         ds = cur.isoformat()
         try:
-            # RHR dal daily summary
-            summary = garmin_get(token, f"/daily-service/daily/summaries/{ds}")
+            summary = garmin.get_daily_summary(ds)
             rhr = None
             if summary:
                 rhr = (
@@ -100,20 +58,15 @@ def sync_sleep(token):
                     or summary.get("averageRestingHeartRate")
                 )
 
-            # Dati sonno
-            sleep = garmin_get(token, f"/sleep-service/sleep/{ds}")
+            sleep = garmin.get_daily_sleep(ds)
             entry = {}
             if sleep:
-                # la risposta può essere un dict con dailySleepDTO o direttamente i campi
                 dto = sleep.get("dailySleepDTO") or sleep
                 deep  = dto.get("deepSleepSeconds",  0) or 0
                 rem   = dto.get("remSleepSeconds",   0) or 0
                 light = dto.get("lightSleepSeconds", 0) or 0
-                total = dto.get("sleepTimeSeconds",  0) or 0
+                total = dto.get("sleepTimeSeconds",  0) or dto.get("totalSleepSeconds", 0) or 0
                 awake = dto.get("awakeSleepSeconds", 0) or 0
-                # fallback con nomi alternativi
-                if not total:
-                    total = dto.get("totalSleepSeconds", 0) or 0
                 if total:
                     entry["total"] = round(total / 60)
                 if deep:
@@ -187,15 +140,16 @@ def upload_to_dropbox(token, path, data_map):
 def main():
     print(f"=== Garmin Personal API → Dropbox CI Sync (ultimi {DAYS_BACK} giorni) ===")
 
-    garmin_token = garmin_get_token()
+    with GarminClient() as garmin:
+        print("Autenticazione OK.")
 
-    print("Sync kcal...")
-    kcal_map = sync_kcal(garmin_token)
-    print(f"Trovati {len(kcal_map)} giorni con kcal")
+        print("Sync kcal...")
+        kcal_map = sync_kcal(garmin)
+        print(f"Trovati {len(kcal_map)} giorni con kcal")
 
-    print("Sync sonno + RHR...")
-    sleep_map = sync_sleep(garmin_token)
-    print(f"Trovati {len(sleep_map)} giorni con dati sonno/RHR")
+        print("Sync sonno + RHR...")
+        sleep_map = sync_sleep(garmin)
+        print(f"Trovati {len(sleep_map)} giorni con dati sonno/RHR")
 
     print("Ottengo access token Dropbox...")
     dropbox_token = get_dropbox_access_token()
