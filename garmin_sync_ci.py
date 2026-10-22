@@ -15,6 +15,20 @@ DROPBOX_SLEEP_PATH = "/hackdiet_sleep.json"
 DAYS_BACK = int(os.environ.get("DAYS_BACK", 7))
 
 
+def _attr(obj, *names, default=None):
+    """Legge un attributo o chiave da un oggetto gcpapi-sync (che può essere dataclass o dict)."""
+    for name in names:
+        try:
+            v = getattr(obj, name, None)
+            if v is None and isinstance(obj, dict):
+                v = obj.get(name)
+            if v is not None:
+                return v
+        except Exception:
+            pass
+    return default
+
+
 def sync_kcal(garmin):
     end = date.today()
     start = end - timedelta(days=DAYS_BACK)
@@ -25,17 +39,14 @@ def sync_kcal(garmin):
         try:
             data = garmin.get_daily_summary(ds)
             if data:
-                kcal = (
-                    data.get("totalKilocalories")
-                    or data.get("consumedKilocalories")
-                    or data.get("activeKilocalories")
-                    or (data.get("nutrition", {}) or {}).get("totalCalories")
-                )
+                kcal = _attr(data,
+                    "totalKilocalories", "consumedKilocalories",
+                    "activeKilocalories", "totalCalories")
                 if kcal and int(kcal) > 0:
                     kcal_map[ds] = int(kcal)
                     print(f"  {ds}: {int(kcal)} kcal")
                 else:
-                    print(f"  {ds}: kcal non trovate — campi: {list(data.keys())[:10]}")
+                    print(f"  {ds}: kcal non trovate — oggetto: {type(data).__name__}, attrs: {[a for a in dir(data) if not a.startswith('_')][:15]}")
         except Exception as e:
             print(f"  {ds}: errore kcal - {e}")
         cur += timedelta(days=1)
@@ -51,22 +62,18 @@ def sync_sleep(garmin):
         ds = cur.isoformat()
         try:
             summary = garmin.get_daily_summary(ds)
-            rhr = None
-            if summary:
-                rhr = (
-                    summary.get("restingHeartRate")
-                    or summary.get("averageRestingHeartRate")
-                )
+            rhr = _attr(summary, "restingHeartRate", "averageRestingHeartRate") if summary else None
 
             sleep = garmin.get_daily_sleep(ds)
             entry = {}
             if sleep:
-                dto = sleep.get("dailySleepDTO") or sleep
-                deep  = dto.get("deepSleepSeconds",  0) or 0
-                rem   = dto.get("remSleepSeconds",   0) or 0
-                light = dto.get("lightSleepSeconds", 0) or 0
-                total = dto.get("sleepTimeSeconds",  0) or dto.get("totalSleepSeconds", 0) or 0
-                awake = dto.get("awakeSleepSeconds", 0) or 0
+                # get_daily_sleep può restituire l'oggetto direttamente o con un wrapper
+                dto = _attr(sleep, "dailySleepDTO") or sleep
+                deep  = _attr(dto, "deepSleepSeconds",  default=0) or 0
+                rem   = _attr(dto, "remSleepSeconds",   default=0) or 0
+                light = _attr(dto, "lightSleepSeconds", default=0) or 0
+                total = _attr(dto, "sleepTimeSeconds", "totalSleepSeconds", default=0) or 0
+                awake = _attr(dto, "awakeSleepSeconds", default=0) or 0
                 if total:
                     entry["total"] = round(total / 60)
                 if deep:
@@ -77,6 +84,8 @@ def sync_sleep(garmin):
                     entry["light"] = round(light / 60)
                 if awake:
                     entry["awake"] = round(awake / 60)
+                if not entry:
+                    print(f"  {ds}: sleep attrs: {[a for a in dir(dto) if not a.startswith('_')][:15]}")
 
             if rhr:
                 entry["rhr"] = int(rhr)
