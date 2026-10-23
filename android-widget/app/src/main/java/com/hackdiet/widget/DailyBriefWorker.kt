@@ -76,14 +76,14 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
                 else null
                 sb.appendLine()
                 sb.appendLine("── DEBUG (rimuovere dopo verifica) ──")
-                sb.appendLine("Lista: perceived_exertion=${a0.opt("perceived_exertion")} rpe=${a0.opt("rpe")} feel=${a0.opt("feel")}")
-                sb.appendLine("Lista: icu_max_watts=${a0.opt("icu_max_watts")} max_watts=${a0.opt("max_watts")}")
-                sb.appendLine("Lista: icu_power_zone_times=${a0.opt("icu_power_zone_times")}")
+                sb.appendLine("Lista: icu_rpe=${a0.opt("icu_rpe")} feel=${a0.opt("feel")}")
+                sb.appendLine("Lista: p_max=${a0.opt("p_max")}")
+                sb.appendLine("Lista: icu_zone_times=${a0.opt("icu_zone_times")}")
                 sb.appendLine("Lista: icu_hr_zone_times=${a0.opt("icu_hr_zone_times")}")
                 if (det0 != null) {
-                    sb.appendLine("Detail: perceived_exertion=${det0.opt("perceived_exertion")} rpe=${det0.opt("rpe")} feel=${det0.opt("feel")}")
-                    sb.appendLine("Detail: icu_max_watts=${det0.opt("icu_max_watts")} max_watts=${det0.opt("max_watts")}")
-                    sb.appendLine("Detail: icu_power_zone_times=${det0.opt("icu_power_zone_times")}")
+                    sb.appendLine("Detail: icu_rpe=${det0.opt("icu_rpe")} feel=${det0.opt("feel")}")
+                    sb.appendLine("Detail: p_max=${det0.opt("p_max")}")
+                    sb.appendLine("Detail: icu_zone_times=${det0.opt("icu_zone_times")}")
                     sb.appendLine("Detail: icu_hr_zone_times=${det0.opt("icu_hr_zone_times")}")
                 } else {
                     sb.appendLine("Detail: FETCH FALLITO per id=$actId0")
@@ -131,12 +131,9 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         sb.appendLine("NP: ${np?.let { "$it W" } ?: "-"}")
         sb.appendLine("TSS: ${tss ?: "-"}")
         sb.appendLine("Work: ${workKj?.let { "$it kJ" } ?: "-"}")
-        // RPE: dal dettaglio o dalla lista, field name varia
-        val rpe = detail?.optIntOrNull("perceived_exertion")
-            ?: detail?.optIntOrNull("rpe")
-            ?: a.optIntOrNull("perceived_exertion")
-            ?: a.optIntOrNull("rpe")
-        val feel = detail?.optIntOrNull("feel") ?: a.optIntOrNull("feel")
+        // icu_rpe e feel — nomi da spec OpenAPI ufficiale
+        val rpe  = detail?.optIntOrNull("icu_rpe") ?: a.optIntOrNull("icu_rpe")
+        val feel = detail?.optIntOrNull("feel")    ?: a.optIntOrNull("feel")
         sb.appendLine("RPE (1 = Rest / 10 = Max effort): ${rpe ?: "-"}")
         sb.appendLine("Feel (1 = Strong / 5 = Weak): ${feel?.let { feelLabel(it) } ?: "-"}")
         sb.appendLine()
@@ -161,12 +158,8 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         sb.appendLine("FTP (set): ${a.fmtInt("icu_ftp", "W")}")
         sb.appendLine("IF: ${a.fmtDecRaw("icu_intensity")}")
         sb.appendLine("VI: ${a.fmtDecRaw("icu_variability_index")}")
-        // Max power: dal dettaglio o dalla lista
-        val maxW = detail?.optIntOrNull("icu_max_watts")
-            ?: detail?.optIntOrNull("max_watts")
-            ?: detail?.optIntOrNull("max_power")
-            ?: a.optIntOrNull("icu_max_watts")
-            ?: a.optIntOrNull("max_watts")
+        // Max power: p_max — nome da spec OpenAPI ufficiale
+        val maxW = detail?.optIntOrNull("p_max") ?: a.optIntOrNull("p_max")
         sb.appendLine("Max power: ${maxW?.let { "$it W" } ?: "-"}")
         sb.appendLine("Work: ${workKj?.let { "$it kJ" } ?: "-"}")
         val workAboveKj = a.optLongOrNull("icu_joules_above_ftp")?.let { (it / 1000).toInt() }
@@ -184,10 +177,10 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         sb.appendLine("Pw:HR (full ride decoupling): ${a.fmtPercent("decoupling")}")
         sb.appendLine()
 
-        // POWER ZONES — dal dettaglio (più affidabile) o dalla lista
+        // POWER ZONES — icu_zone_times, nome da spec OpenAPI ufficiale
         sb.appendLine("POWER ZONES")
-        val pzt = detail?.optJSONArray("icu_power_zone_times")
-            ?: a.optJSONArray("icu_power_zone_times")
+        val pzt = detail?.optJSONArray("icu_zone_times")
+            ?: a.optJSONArray("icu_zone_times")
         val pzLabels = listOf("Z1","Z2","Z3","Z4","Z5","Z6+","Sweet Spot")
         if (pzt != null && pzt.length() > 0) {
             for (z in 0 until pzt.length()) {
