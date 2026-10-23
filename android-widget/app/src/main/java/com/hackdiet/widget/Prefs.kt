@@ -18,6 +18,7 @@ object Prefs {
     const val KEY_LAST_SLEEP = "last_sleep"
     const val KEY_WIDGET_BG_COLOR = "widget_bg_color"   // hex es. "#000000"
     const val KEY_WIDGET_BG_ALPHA = "widget_bg_alpha"   // 0–100 come stringa
+    const val KEY_DAILY_BRIEF_LAST = "daily_brief_last"
     private const val MAX_LOG_LINES = 50
 
     private fun prefs(ctx: Context) = EncryptedSharedPreferences.create(

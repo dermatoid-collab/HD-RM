@@ -29,6 +29,7 @@ class SettingsActivity : Activity() {
     private lateinit var tvLog: TextView
     private lateinit var btnRead: Button
     private lateinit var btnSync: Button
+    private lateinit var btnDailyBrief: Button
     private val handler = Handler(Looper.getMainLooper())
 
     private val REQ_EXPORT = 1001
@@ -44,6 +45,7 @@ class SettingsActivity : Activity() {
         val btnSave = findViewById<Button>(R.id.btn_save)
         btnRead = findViewById(R.id.btn_read)
         btnSync = findViewById(R.id.btn_sync)
+        btnDailyBrief = findViewById(R.id.btn_daily_brief)
         tvLog = findViewById(R.id.tv_log)
         val rgSleepFormat = findViewById<RadioGroup>(R.id.rg_sleep_format)
 
@@ -93,6 +95,14 @@ class SettingsActivity : Activity() {
             startWorker(readOnly = false)
         }
 
+        btnDailyBrief.setOnClickListener {
+            if (!Prefs.isConfigured(this)) {
+                Toast.makeText(this, "Salva prima le credenziali", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            startDailyBrief()
+        }
+
         findViewById<Button>(R.id.btn_export).setOnClickListener { launchExport() }
         findViewById<Button>(R.id.btn_import).setOnClickListener { launchImport() }
 
@@ -128,6 +138,37 @@ class SettingsActivity : Activity() {
         WorkManager.getInstance(this).enqueue(req)
 
         pollWorkState(req.id, btn, if (readOnly) "🔍 Leggi dati da Garmin" else "▶ Sincronizza ora → Intervals")
+    }
+
+    private fun startDailyBrief() {
+        btnDailyBrief.isEnabled = false
+        btnDailyBrief.text = "⏳ Generazione…"
+
+        val req = androidx.work.OneTimeWorkRequestBuilder<DailyBriefWorker>().build()
+        androidx.work.WorkManager.getInstance(this).enqueue(req)
+
+        handler.postDelayed(object : Runnable {
+            override fun run() {
+                val info = try {
+                    androidx.work.WorkManager.getInstance(this@SettingsActivity)
+                        .getWorkInfoById(req.id).get()
+                } catch (_: Exception) { null }
+
+                if (info != null && info.state.isFinished) {
+                    btnDailyBrief.isEnabled = true
+                    btnDailyBrief.text = "📋 Genera HS Daily Brief"
+                    refreshLog()
+                    val ok = info.state == androidx.work.WorkInfo.State.SUCCEEDED
+                    Toast.makeText(
+                        this@SettingsActivity,
+                        if (ok) "Daily Brief generato ✓" else "Errore generazione Brief",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    handler.postDelayed(this, 2000)
+                }
+            }
+        }, 2000)
     }
 
     private fun setupBgColorPicker() {
