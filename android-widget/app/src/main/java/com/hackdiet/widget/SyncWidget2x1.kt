@@ -89,7 +89,7 @@ class SyncWidget2x1 : AppWidgetProvider() {
             // Dati testo
             val datetimeText = if (lastSync.isNotEmpty()) lastSync else "--/-- · --:--"
             val kcalText     = if (kcal.isNotEmpty()) "$kcal kcal" else "— kcal"
-            val sleepText    = if (sleep.isNotEmpty()) sleep else "D — · R —"
+            val sleepText    = if (sleep.isNotEmpty()) sleep else "D—·R—"
 
             rv.setTextViewText(R.id.tv2_datetime, datetimeText)
             rv.setTextViewText(R.id.tv2_kcal, kcalText)

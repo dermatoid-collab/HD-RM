@@ -102,9 +102,9 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             // Salva i dati individuali per il widget 2×1
             yesterdayData.kcalConsumed?.let { Prefs.set(ctx, Prefs.KEY_LAST_KCAL, it.toString()) }
             val sleepParts = listOfNotNull(
-                todayData.deepSleepMin?.let { "D ${it}'" },
-                todayData.remSleepMin?.let { "R ${it}'" }
-            ).joinToString(" · ")
+                todayData.deepSleepMin?.let { "D${it}'" },
+                todayData.remSleepMin?.let { "R${it}'" }
+            ).joinToString("·")
             if (sleepParts.isNotEmpty()) Prefs.set(ctx, Prefs.KEY_LAST_SLEEP, sleepParts)
 
             Prefs.appendLog(ctx, detail)

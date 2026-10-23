@@ -88,7 +88,7 @@
             android:id="@+id/tv2_sleep"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="D — · R —"
+            android:text="D—·R—"
             android:textSize="11sp"
             android:maxLines="1"
             android:textColor="#ffffff"
