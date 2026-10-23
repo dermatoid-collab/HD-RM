@@ -67,6 +67,29 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             sb.appendLine("Notes (today):")
             sb.appendLine(if (notesToday.isEmpty()) "-" else notesToday.joinToString("\n\n"))
 
+            // Sezione DEBUG temporanea: mostra campi grezzi dal primo risultato
+            if (activities.length() > 0) {
+                val a0 = activities.getJSONObject(0)
+                val actId0 = a0.optString("id", "")
+                val det0 = if (actId0.isNotBlank())
+                    runCatching { IntervalsReadApi.getActivityDetail(apiKey, actId0) }.getOrNull()
+                else null
+                sb.appendLine()
+                sb.appendLine("── DEBUG (rimuovere dopo verifica) ──")
+                sb.appendLine("Lista: perceived_exertion=${a0.opt("perceived_exertion")} rpe=${a0.opt("rpe")} feel=${a0.opt("feel")}")
+                sb.appendLine("Lista: icu_max_watts=${a0.opt("icu_max_watts")} max_watts=${a0.opt("max_watts")}")
+                sb.appendLine("Lista: icu_power_zone_times=${a0.opt("icu_power_zone_times")}")
+                sb.appendLine("Lista: icu_hr_zone_times=${a0.opt("icu_hr_zone_times")}")
+                if (det0 != null) {
+                    sb.appendLine("Detail: perceived_exertion=${det0.opt("perceived_exertion")} rpe=${det0.opt("rpe")} feel=${det0.opt("feel")}")
+                    sb.appendLine("Detail: icu_max_watts=${det0.opt("icu_max_watts")} max_watts=${det0.opt("max_watts")}")
+                    sb.appendLine("Detail: icu_power_zone_times=${det0.opt("icu_power_zone_times")}")
+                    sb.appendLine("Detail: icu_hr_zone_times=${det0.opt("icu_hr_zone_times")}")
+                } else {
+                    sb.appendLine("Detail: FETCH FALLITO per id=$actId0")
+                }
+            }
+
             val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
             Prefs.set(ctx, Prefs.KEY_DAILY_BRIEF_LAST,
                 "── Daily Brief $ts ──────────────\n${sb.toString().trimEnd()}")
