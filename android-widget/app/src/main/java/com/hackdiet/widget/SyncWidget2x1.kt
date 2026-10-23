@@ -29,6 +29,13 @@ class SyncWidget2x1 : AppWidgetProvider() {
         }
 
         private fun updateWidget(ctx: Context, mgr: AppWidgetManager, id: Int) {
+            val rv = try { buildViews(ctx) } catch (_: Exception) {
+                RemoteViews(ctx.packageName, R.layout.widget_layout_2x1)
+            }
+            mgr.updateAppWidget(id, rv)
+        }
+
+        private fun buildViews(ctx: Context): RemoteViews {
             val rv = RemoteViews(ctx.packageName, R.layout.widget_layout_2x1)
 
             val lastResult = Prefs.get(ctx, Prefs.KEY_LAST_RESULT, "")
@@ -74,8 +81,8 @@ class SyncWidget2x1 : AppWidgetProvider() {
                 }
             }
 
-            // Upload icon opacity per in-progress
-            rv.setFloat(R.id.iv_upload, "setAlpha", if (isInProgress) 0.4f else 1.0f)
+            // Upload icon opacity per in-progress (setImageAlpha: 0-255)
+            rv.setInt(R.id.iv_upload, "setImageAlpha", if (isInProgress) 102 else 255)
 
             // Dati testo
             val datetimeText = if (lastSync.isNotEmpty()) lastSync else "--/-- · --:--"
@@ -95,7 +102,7 @@ class SyncWidget2x1 : AppWidgetProvider() {
             val alpha42 = (textColor and 0x00FFFFFF) or (0x6B shl 24) // 0x6B ≈ 107 ≈ 0.42 * 255
             rv.setTextColor(R.id.tv2_datetime, alpha42)
 
-            mgr.updateAppWidget(id, rv)
+            return rv
         }
     }
 }

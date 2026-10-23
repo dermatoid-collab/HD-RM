@@ -34,6 +34,13 @@ object IntervalsReadApi {
         return JSONArray(get(url, apiKey))
     }
 
+    // Dettaglio completo attività (zone, RPE, max power, ecc.)
+    fun getActivityDetail(apiKey: String, activityId: String): JSONObject? {
+        return try {
+            JSONObject(get("$BASE/activity/$activityId", apiKey))
+        } catch (_: Exception) { null }
+    }
+
     // Endpoint separato per gli intervalli dell'attività
     fun getActivityIntervals(apiKey: String, activityId: String): JSONArray {
         return try {
