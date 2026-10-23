@@ -6,12 +6,14 @@
     android:orientation="horizontal"
     android:background="@drawable/widget_bg">
 
-    <!-- Striscia colorata sinistra -->
-    <View
+    <!-- Striscia colorata sinistra (ImageView: View non è nella whitelist RemoteViews) -->
+    <ImageView
         android:id="@+id/v_stripe"
         android:layout_width="5dp"
         android:layout_height="match_parent"
-        android:background="#4ade80" />
+        android:src="@android:color/transparent"
+        android:background="#4ade80"
+        android:contentDescription="@null" />
 
     <!-- Zona icone -->
     <LinearLayout

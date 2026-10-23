@@ -85,6 +85,12 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
                     sb.appendLine("Detail: p_max=${det0.opt("p_max")}")
                     sb.appendLine("Detail: icu_zone_times=${det0.opt("icu_zone_times")}")
                     sb.appendLine("Detail: icu_hr_zone_times=${det0.opt("icu_hr_zone_times")}")
+                    // dump tutte le chiavi che contengono "zone" o "rpe" o "p_max"
+                    val keys = det0.keys().asSequence().filter { k ->
+                        k.contains("zone", true) || k.contains("rpe", true) ||
+                        k == "p_max" || k == "feel" || k.contains("perceived", true)
+                    }.sorted().toList()
+                    sb.appendLine("Detail keys con zone/rpe/pmax: $keys")
                 } else {
                     sb.appendLine("Detail: FETCH FALLITO per id=$actId0")
                 }
