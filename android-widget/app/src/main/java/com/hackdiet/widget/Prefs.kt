@@ -1,6 +1,7 @@
 package com.hackdiet.widget
 
 import android.content.Context
+import android.graphics.Color
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
@@ -15,6 +16,8 @@ object Prefs {
     const val KEY_SLEEP_FORMAT = "sleep_format"  // "hm" | "min"
     const val KEY_LAST_KCAL = "last_kcal"
     const val KEY_LAST_SLEEP = "last_sleep"
+    const val KEY_WIDGET_BG_COLOR = "widget_bg_color"   // hex es. "#000000"
+    const val KEY_WIDGET_BG_ALPHA = "widget_bg_alpha"   // 0–100 come stringa
     private const val MAX_LOG_LINES = 50
 
     private fun prefs(ctx: Context) = EncryptedSharedPreferences.create(
@@ -37,6 +40,14 @@ object Prefs {
         lines.add(0, line)
         if (lines.size > MAX_LOG_LINES) lines.subList(MAX_LOG_LINES, lines.size).clear()
         set(ctx, KEY_LOG, lines.joinToString("\n"))
+    }
+
+    fun widgetBgColor(ctx: Context): Int {
+        val hex   = get(ctx, KEY_WIDGET_BG_COLOR, "#000000")
+        val alpha = get(ctx, KEY_WIDGET_BG_ALPHA, "75").toIntOrNull()?.coerceIn(0, 100) ?: 75
+        val base  = runCatching { Color.parseColor(hex) }.getOrDefault(Color.BLACK)
+        val a255  = (alpha * 255 / 100)
+        return Color.argb(a255, Color.red(base), Color.green(base), Color.blue(base))
     }
 
     fun isConfigured(ctx: Context) =

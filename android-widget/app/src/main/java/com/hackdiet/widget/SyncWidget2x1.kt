@@ -49,6 +49,9 @@ class SyncWidget2x1 : AppWidgetProvider() {
                 else         -> COLOR_RED   to COLOR_RED
             }
 
+            // Sfondo widget
+            rv.setInt(R.id.widget_root, "setBackgroundColor", Prefs.widgetBgColor(ctx))
+
             // Striscia
             rv.setInt(R.id.v_stripe, "setBackgroundColor", stripeColor)
 

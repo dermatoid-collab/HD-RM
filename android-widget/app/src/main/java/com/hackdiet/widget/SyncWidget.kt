@@ -59,6 +59,8 @@ class SyncWidget : AppWidgetProvider() {
             val textColor = if (isToday || lastSync.isBlank()) Color.WHITE else Color.rgb(255, 80, 80)
             views.setTextColor(R.id.tv_status, textColor)
 
+            views.setInt(R.id.widget_root, "setBackgroundColor", Prefs.widgetBgColor(ctx))
+
             val intent = Intent(ctx, SyncWidget::class.java).apply { action = ACTION_SYNC }
             val pi = PendingIntent.getBroadcast(
                 ctx, 0, intent,

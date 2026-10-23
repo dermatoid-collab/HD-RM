@@ -2,13 +2,17 @@ package com.hackdiet.widget
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.RadioGroup
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.work.OneTimeWorkRequestBuilder
@@ -91,6 +95,8 @@ class SettingsActivity : Activity() {
 
         findViewById<Button>(R.id.btn_export).setOnClickListener { launchExport() }
         findViewById<Button>(R.id.btn_import).setOnClickListener { launchImport() }
+
+        setupBgColorPicker()
     }
 
     override fun onResume() {
@@ -122,6 +128,62 @@ class SettingsActivity : Activity() {
         WorkManager.getInstance(this).enqueue(req)
 
         pollWorkState(req.id, btn, if (readOnly) "🔍 Leggi dati da Garmin" else "▶ Sincronizza ora → Intervals")
+    }
+
+    private fun setupBgColorPicker() {
+        val swatches = listOf(
+            R.id.swatch_black    to "#000000",
+            R.id.swatch_darkgray to "#1C1C1E",
+            R.id.swatch_night    to "#0D1B2A",
+            R.id.swatch_indigo   to "#1A1A2E",
+            R.id.swatch_white    to "#FFFFFF"
+        )
+
+        val currentColor = Prefs.get(this, Prefs.KEY_WIDGET_BG_COLOR, "#000000")
+        val tvAlpha = findViewById<TextView>(R.id.tv_bg_alpha)
+        val sbAlpha = findViewById<SeekBar>(R.id.sb_bg_alpha)
+
+        val savedAlpha = Prefs.get(this, Prefs.KEY_WIDGET_BG_ALPHA, "75").toIntOrNull() ?: 75
+        sbAlpha.progress = savedAlpha
+        tvAlpha.text = "$savedAlpha%"
+
+        fun highlightSelected(selectedHex: String) {
+            swatches.forEach { (viewId, hex) ->
+                val v = findViewById<View>(viewId)
+                val d = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.parseColor(hex))
+                    if (hex == selectedHex) {
+                        setStroke(3, Color.WHITE)
+                    }
+                }
+                v.background = d
+            }
+        }
+
+        highlightSelected(currentColor)
+
+        swatches.forEach { (viewId, hex) ->
+            findViewById<View>(viewId).setOnClickListener {
+                Prefs.set(this, Prefs.KEY_WIDGET_BG_COLOR, hex)
+                highlightSelected(hex)
+                SyncWidget.updateAll(this)
+                SyncWidget2x1.updateAll(this)
+            }
+        }
+
+        sbAlpha.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
+                tvAlpha.text = "$progress%"
+                if (fromUser) {
+                    Prefs.set(this@SettingsActivity, Prefs.KEY_WIDGET_BG_ALPHA, progress.toString())
+                    SyncWidget.updateAll(this@SettingsActivity)
+                    SyncWidget2x1.updateAll(this@SettingsActivity)
+                }
+            }
+            override fun onStartTrackingTouch(sb: SeekBar) {}
+            override fun onStopTrackingTouch(sb: SeekBar) {}
+        })
     }
 
     private fun launchExport() {
@@ -158,6 +220,8 @@ class SettingsActivity : Activity() {
                 put(Prefs.KEY_INTERVALS_API_KEY, Prefs.get(this@SettingsActivity, Prefs.KEY_INTERVALS_API_KEY))
                 put(Prefs.KEY_INTERVALS_ATHLETE_ID, Prefs.get(this@SettingsActivity, Prefs.KEY_INTERVALS_ATHLETE_ID))
                 put(Prefs.KEY_SLEEP_FORMAT, Prefs.get(this@SettingsActivity, Prefs.KEY_SLEEP_FORMAT, "hm"))
+                put(Prefs.KEY_WIDGET_BG_COLOR, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_COLOR, "#000000"))
+                put(Prefs.KEY_WIDGET_BG_ALPHA, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_ALPHA, "75"))
             }
             contentResolver.openOutputStream(uri)?.use { out ->
                 OutputStreamWriter(out).use { it.write(json.toString(2)) }
@@ -181,6 +245,8 @@ class SettingsActivity : Activity() {
             maybeSet(Prefs.KEY_INTERVALS_API_KEY)
             maybeSet(Prefs.KEY_INTERVALS_ATHLETE_ID)
             maybeSet(Prefs.KEY_SLEEP_FORMAT)
+            maybeSet(Prefs.KEY_WIDGET_BG_COLOR)
+            maybeSet(Prefs.KEY_WIDGET_BG_ALPHA)
 
             // Aggiorna i campi visibili
             findViewById<EditText>(R.id.et_garmin_key).setText(Prefs.get(this, Prefs.KEY_GARMIN_API_KEY))
@@ -189,6 +255,9 @@ class SettingsActivity : Activity() {
             val fmt = Prefs.get(this, Prefs.KEY_SLEEP_FORMAT, "hm")
             findViewById<RadioGroup>(R.id.rg_sleep_format).check(if (fmt == "min") R.id.rb_min else R.id.rb_hm)
 
+            setupBgColorPicker()
+            SyncWidget.updateAll(this)
+            SyncWidget2x1.updateAll(this)
             Toast.makeText(this, "Impostazioni importate", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(this, "Errore importazione: ${e.message}", Toast.LENGTH_LONG).show()
