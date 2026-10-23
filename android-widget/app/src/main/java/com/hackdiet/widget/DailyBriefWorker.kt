@@ -14,23 +14,17 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
     override suspend fun doWork(): Result {
         val ctx = applicationContext
         return try {
-            val apiKey   = Prefs.get(ctx, Prefs.KEY_INTERVALS_API_KEY)
+            val apiKey    = Prefs.get(ctx, Prefs.KEY_INTERVALS_API_KEY)
             val athleteId = Prefs.get(ctx, Prefs.KEY_INTERVALS_ATHLETE_ID)
             val today     = LocalDate.now()
             val yesterday = today.minusDays(1)
 
-            // ── 1. Attività di ieri (possono essere più di una) ────────────────
-            val activities = IntervalsReadApi.getActivitiesForDate(apiKey, athleteId, yesterday)
-
-            // ── 2. Wellness: ieri (peso, kcal) + oggi (sonno, HRV, ecc.) ───────
+            val activities    = IntervalsReadApi.getActivitiesForDate(apiKey, athleteId, yesterday)
             val wellnessYest  = IntervalsReadApi.getWellness(apiKey, athleteId, yesterday)
             val wellnessToday = IntervalsReadApi.getWellness(apiKey, athleteId, today)
+            val notesYest     = IntervalsReadApi.getCalendarNotes(apiKey, athleteId, yesterday)
+            val notesToday    = IntervalsReadApi.getCalendarNotes(apiKey, athleteId, today)
 
-            // ── 3. Note calendario ieri + oggi ─────────────────────────────────
-            val notesYest  = IntervalsReadApi.getCalendarNotes(apiKey, athleteId, yesterday)
-            val notesToday = IntervalsReadApi.getCalendarNotes(apiKey, athleteId, today)
-
-            // ── 4. Costruzione report ──────────────────────────────────────────
             val sb = StringBuilder()
             sb.appendLine("Perform today's HS Daily Brief based on the following data.")
             sb.appendLine()
@@ -39,25 +33,25 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
 
             if (activities.length() == 0) {
                 sb.appendLine("No activity found for $yesterday.")
+                sb.appendLine()
             } else {
                 for (i in 0 until activities.length()) {
                     val act = activities.getJSONObject(i)
                     val actId = act.optString("id", "")
-                    val detail = if (actId.isNotBlank())
-                        runCatching { IntervalsReadApi.getActivityDetail(apiKey, actId) }.getOrNull()
-                    else null
-
-                    sb.appendLine(formatActivity(act, detail, yesterday, i + 1, activities.length()))
+                    val intervals = if (actId.isNotBlank())
+                        runCatching { IntervalsReadApi.getActivityIntervals(apiKey, actId) }.getOrDefault(JSONArray())
+                    else JSONArray()
+                    sb.append(formatActivity(act, intervals, yesterday, i + 1, activities.length()))
                 }
             }
 
-            // ── Wellness ────────────────────────────────────────────────────────
+            // SLEEP (da wellness di oggi)
             sb.appendLine("SLEEP and REST (today's night, today's morning):")
-            sb.appendLine("Sleep: ${wellnessToday.fmtSleep("sleep")}")
-            sb.appendLine("Deep sleep: ${wellnessToday.fmtSleep("deepSleep")}")
-            sb.appendLine("REM sleep: ${wellnessToday.fmtSleep("remSleep")}")
+            sb.appendLine("Sleep: ${wellnessToday.fmtSleepSecs("sleepSecs")}")
+            sb.appendLine("Deep sleep: ${wellnessToday.fmtHm("DeepSleep")}")
+            sb.appendLine("REM sleep: ${wellnessToday.fmtHm("REMSleep")}")
             sb.appendLine("Resting HR: ${wellnessToday.fmtInt("restingHR", "bpm")}")
-            sb.appendLine("Sleep pattern: ${wellnessToday.fmtSleepPattern()}")
+            sb.appendLine("Sleep pattern: ${wellnessToday.fmtSleepQuality()}")
             sb.appendLine("Morning HRV (HRV-RM): ${wellnessToday.fmtDec("hrv")}")
             sb.appendLine()
             sb.appendLine("WELLNESS (yesterday):")
@@ -71,9 +65,8 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             sb.appendLine(if (notesToday.isEmpty()) "-" else notesToday.joinToString("\n\n"))
 
             val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
-            val report = "── Daily Brief $ts ──────────────\n${sb.toString().trimEnd()}"
-
-            Prefs.set(ctx, Prefs.KEY_DAILY_BRIEF_LAST, report)
+            Prefs.set(ctx, Prefs.KEY_DAILY_BRIEF_LAST,
+                "── Daily Brief $ts ──────────────\n${sb.toString().trimEnd()}")
             Result.success()
         } catch (e: Exception) {
             Prefs.set(ctx, Prefs.KEY_DAILY_BRIEF_LAST,
@@ -85,8 +78,8 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
     // ── Formattazione singola attività ─────────────────────────────────────────
 
     private fun formatActivity(
-        act: JSONObject,
-        detail: JSONObject?,
+        a: JSONObject,
+        intervals: JSONArray,
         date: LocalDate,
         idx: Int,
         total: Int
@@ -96,148 +89,150 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         sb.appendLine(header)
         sb.appendLine()
 
-        val typeRaw = act.optString("type", "-")
-        val isIndoor = act.optBoolean("indoor", false) ||
-                typeRaw.contains("Virtual", ignoreCase = true) ||
-                typeRaw.contains("Indoor", ignoreCase = true)
+        // Indoor: campo "trainer" (boolean) come nel Python
+        val isIndoor = a.optBoolean("trainer", false)
         val typeLabel = if (isIndoor) "Indoor" else "Outdoor"
+
+        val np    = a.optIntOrNull("icu_weighted_avg_watts")
+        val tss   = a.optIntOrNull("icu_training_load")
+        val workJ = a.optLongOrNull("icu_joules")
+        val workKj = workJ?.let { (it / 1000).toInt() }
 
         sb.appendLine("Date: $date")
         sb.appendLine("Type: $typeLabel")
-        sb.appendLine("Elapsed time: ${act.fmtSecs("elapsed_time")}")
-        sb.appendLine("NP: ${act.fmtInt("icu_weighted_average_watts", "W")}")
-        sb.appendLine("TSS: ${act.fmtInt("icu_training_load")}")
-        sb.appendLine("Work: ${act.fmtInt("total_kilojoules", "kJ")}")
-
-        val src = detail ?: act
-        val rpe  = src.optIntOrNull("rpe")
-        val feel = src.optIntOrNull("feel")
-        sb.appendLine("RPE (1 = Rest / 10 = Max effort): ${rpe ?: "-"}")
-        sb.appendLine("Feel (1 = Strong / 5 = Weak): ${feel?.let { feelLabel(it) } ?: "-"}")
+        sb.appendLine("Elapsed time: ${a.fmtSecs("elapsed_time")}")
+        sb.appendLine("NP: ${np?.let { "$it W" } ?: "-"}")
+        sb.appendLine("TSS: ${tss ?: "-"}")
+        sb.appendLine("Work: ${workKj?.let { "$it kJ" } ?: "-"}")
+        // RPE: "perceived_exertion" nel JSON Intervals
+        sb.appendLine("RPE (1 = Rest / 10 = Max effort): ${a.optIntOrNull("perceived_exertion") ?: "-"}")
+        sb.appendLine("Feel (1 = Strong / 5 = Weak): ${a.optIntOrNull("feel")?.let { feelLabel(it) } ?: "-"}")
         sb.appendLine()
 
         // TIME / DISTANCE
         sb.appendLine("TIME / DISTANCE")
-        sb.appendLine("Start time: ${act.optString("start_date_local", "-").substringAfter("T").take(8).ifBlank { "-" }}")
-        sb.appendLine("Elapsed time: ${act.fmtSecs("elapsed_time")}")
-        sb.appendLine("Moving time: ${act.fmtSecs("moving_time")}")
-        val coasting = (act.optInt("elapsed_time", 0) - act.optInt("moving_time", 0))
-            .let { if (it > 0) secsToHms(it) else "-" }
-        sb.appendLine("Coasting time: $coasting")
-        sb.appendLine("Distance: ${act.fmtKm("distance")}")
-        if (!isIndoor) sb.appendLine("Elevation gain: ${act.fmtInt("total_elevation_gain", "m")}")
+        val startRaw = a.optString("start_date_local", "")
+        val startTime = if ("T" in startRaw) startRaw.substringAfter("T").take(8) else "-"
+        sb.appendLine("Start time: $startTime")
+        sb.appendLine("Elapsed time: ${a.fmtSecs("elapsed_time")}")
+        sb.appendLine("Moving time: ${a.fmtSecs("moving_time")}")
+        val coast = (a.optInt("elapsed_time", 0) - a.optInt("moving_time", 0))
+        sb.appendLine("Coasting time: ${if (coast > 0) secsToHms(coast) else "-"}")
+        sb.appendLine("Distance: ${a.fmtKm("distance")}")
+        if (!isIndoor) sb.appendLine("Elevation gain: ${a.fmtInt("total_elevation_gain", "m")}")
         sb.appendLine()
 
         // POWER
         sb.appendLine("POWER")
-        sb.appendLine("Avg power: ${act.fmtInt("average_watts", "W")}")
-        sb.appendLine("NP: ${act.fmtInt("icu_weighted_average_watts", "W")}")
-        sb.appendLine("FTP (set): ${act.fmtInt("icu_ftp", "W")}")
-        sb.appendLine("IF: ${act.fmtDecRaw("icu_intensity")}")
-        sb.appendLine("VI: ${act.fmtDecRaw("icu_variability_index")}")
-        sb.appendLine("Max power: ${act.fmtInt("max_watts", "W")}")
-        sb.appendLine("Work: ${act.fmtInt("total_kilojoules", "kJ")}")
-        sb.appendLine("Work above FTP: ${src.fmtInt("icu_joules_above_ftp", "J")}")
-        sb.appendLine("Calories: ${act.fmtInt("calories", "kcal")}")
-        sb.appendLine("CHO used: ${src.fmtInt("icu_carbs", "g")}")
-        sb.appendLine("VO2max (latest): ${act.fmtInt("vo2max")}")
+        sb.appendLine("Avg power: ${a.fmtInt("icu_average_watts", "W")}")
+        sb.appendLine("NP: ${np?.let { "$it W" } ?: "-"}")
+        sb.appendLine("FTP (set): ${a.fmtInt("icu_ftp", "W")}")
+        sb.appendLine("IF: ${a.fmtDecRaw("icu_intensity")}")
+        sb.appendLine("VI: ${a.fmtDecRaw("icu_variability_index")}")
+        // Max power: "icu_max_watts" priorità, fallback "max_watts"
+        val maxW = a.optIntOrNull("icu_max_watts") ?: a.optIntOrNull("max_watts")
+        sb.appendLine("Max power: ${maxW?.let { "$it W" } ?: "-"}")
+        sb.appendLine("Work: ${workKj?.let { "$it kJ" } ?: "-"}")
+        val workAboveKj = a.optLongOrNull("icu_joules_above_ftp")?.let { (it / 1000).toInt() }
+        sb.appendLine("Work above FTP: ${workAboveKj?.let { "$it kJ" } ?: "-"}")
+        sb.appendLine("Calories: ${a.fmtInt("calories", "kcal")}")
+        sb.appendLine("CHO used: ${a.fmtInt("icu_carbs_used", "g")}")
+        sb.appendLine("VO2max (latest): ${a.fmtInt("vo2max")}")
         sb.appendLine()
 
         // LOAD
         sb.appendLine("LOAD")
-        sb.appendLine("TSS: ${act.fmtInt("icu_training_load")}")
-        sb.appendLine("TRIMP: ${src.fmtDecRaw("trimp")}")
-        sb.appendLine("EF: ${src.fmtDecRaw("icu_efficiency_factor")}")
-        sb.appendLine("Pw:HR (full ride decoupling): ${src.fmtPercent("icu_hrr")}")
+        sb.appendLine("TSS: ${tss ?: "-"}")
+        sb.appendLine("TRIMP: ${a.fmtDecRaw("trimp")}")
+        sb.appendLine("EF: ${a.fmtDecRaw("icu_efficiency_factor")}")
+        sb.appendLine("Pw:HR (full ride decoupling): ${a.fmtPercent("decoupling")}")
         sb.appendLine()
 
-        // POWER ZONES
+        // POWER ZONES — "icu_power_zone_times": array di interi (secondi per zona)
         sb.appendLine("POWER ZONES")
-        val pz = src.optJSONArray("power_zones") ?: detail?.optJSONArray("power_zones")
-        if (pz != null) {
-            for (z in 0 until pz.length()) {
-                val zone = pz.getJSONObject(z)
-                val label = zone.optString("name", "Z${z + 1}")
-                val secs  = zone.optInt("secs", 0)
-                sb.appendLine("$label: ${secsToHms(secs)}")
+        val pzt = a.optJSONArray("icu_power_zone_times")
+        val pzLabels = listOf("Z1","Z2","Z3","Z4","Z5","Z6+","Sweet Spot")
+        if (pzt != null && pzt.length() > 0) {
+            for (z in 0 until pzt.length()) {
+                val label = pzLabels.getOrElse(z) { "Z${z+1}" }
+                sb.appendLine("$label: ${secsToHms(pzt.optInt(z, 0))}")
             }
         } else {
-            listOf("Z1","Z2","Z3","Z4","Z5","Z6+","Sweet Spot").forEach { sb.appendLine("$it: -") }
+            pzLabels.forEach { sb.appendLine("$it: -") }
         }
 
-        // Intervals summary
-        val intervals = src.optJSONArray("icu_intervals")
+        // Intervals: già recuperati dall'endpoint separato, filtra WORK o con label
         sb.appendLine("Intervals summary:")
-        if (intervals != null && intervals.length() > 0) {
-            val mainIntervals = (0 until intervals.length())
-                .map { intervals.getJSONObject(it) }
-                .filter { it.optBoolean("indoor", false).not() || true }
-                .filter { it.optInt("moving_time", 0) >= 60 && !it.optBoolean("rest", false) }
-            if (mainIntervals.isEmpty()) {
-                sb.appendLine("  -")
-            } else {
-                mainIntervals.forEach { iv ->
-                    val mins = iv.optInt("moving_time", 0) / 60
-                    val watts = iv.optInt("average_watts", 0)
-                    val hr    = iv.optInt("average_heartrate", 0)
-                    val decoup = iv.optDouble("icu_hrr", Double.NaN)
-                    val cad   = iv.optDouble("average_cadence", Double.NaN)
-                    val decoupStr = if (!decoup.isNaN()) "Pw:HR ${String.format("%.2f", decoup)}%" else ""
-                    val cadStr    = if (!cad.isNaN()) "avg Cadence ${cad.toInt()} rpm" else ""
-                    sb.appendLine("  * 1 × $mins min @ $watts W, avg HR $hr bpm, $decoupStr, $cadStr".trimEnd().trimEnd(','))
-                }
+        val workIntervals = (0 until intervals.length())
+            .map { intervals.getJSONObject(it) }
+            .filter { iv ->
+                iv.optString("type") == "WORK" || iv.optString("label").isNotBlank()
             }
-        } else {
+        if (workIntervals.isEmpty()) {
             sb.appendLine("  -")
+        } else {
+            workIntervals.forEach { iv ->
+                val durSecs = iv.optInt("moving_time", 0).takeIf { it > 0 }
+                    ?: iv.optInt("elapsed_time", 0)
+                val mins  = durSecs / 60
+                val watts = iv.optIntOrNull("average_watts") ?: 0
+                val hr    = iv.optIntOrNull("average_heartrate")
+                val decoup = iv.optDouble("decoupling", Double.NaN)
+                val cad   = iv.optDouble("average_cadence", Double.NaN)
+                val parts = mutableListOf("1 × $mins min @ $watts W")
+                if (hr != null) parts.add("avg HR $hr bpm")
+                if (!decoup.isNaN()) parts.add("Pw:HR ${String.format("%.2f", decoup)}%")
+                if (!cad.isNaN()) parts.add("avg Cadence ${cad.toInt()} rpm")
+                sb.appendLine("  * ${parts.joinToString(", ")}")
+            }
         }
         sb.appendLine()
 
         // HR
         sb.appendLine("HR")
-        sb.appendLine("Avg HR: ${act.fmtInt("average_heartrate", "bpm")}")
-        sb.appendLine("Max HR: ${act.fmtInt("max_heartrate", "bpm")}")
-        sb.appendLine("LTHR: ${act.fmtInt("icu_lthr", "bpm")}")
+        sb.appendLine("Avg HR: ${a.fmtInt("average_heartrate", "bpm")}")
+        sb.appendLine("Max HR: ${a.fmtInt("max_heartrate", "bpm")}")
+        sb.appendLine("LTHR: ${a.fmtInt("lthr", "bpm")}")
         sb.appendLine()
 
-        // HR ZONES
+        // HR ZONES — "icu_hr_zone_times": array di interi
         sb.appendLine("HR ZONES")
-        val hrz = src.optJSONArray("hr_zones") ?: detail?.optJSONArray("hr_zones")
-        if (hrz != null) {
-            for (z in 0 until hrz.length()) {
-                val zone = hrz.getJSONObject(z)
-                val label = zone.optString("name", "Z${z + 1}")
-                val secs  = zone.optInt("secs", 0)
-                sb.appendLine("$label: ${secsToHms(secs)}")
+        val hzt = a.optJSONArray("icu_hr_zone_times")
+        val hzLabels = listOf("Z1","Z2","Z3","Z4","Z5+")
+        if (hzt != null && hzt.length() > 0) {
+            for (z in 0 until hzt.length()) {
+                val label = hzLabels.getOrElse(z) { "Z${z+1}" }
+                sb.appendLine("$label: ${secsToHms(hzt.optInt(z, 0))}")
             }
         } else {
-            listOf("Z1","Z2","Z3","Z4","Z5+").forEach { sb.appendLine("$it: -") }
+            hzLabels.forEach { sb.appendLine("$it: -") }
         }
         sb.appendLine()
 
         // CADENCE
         sb.appendLine("CADENCE")
-        sb.appendLine("Avg cadence: ${act.fmtDecRaw("average_cadence")} rpm")
+        sb.appendLine("Avg cadence: ${a.fmtDecRaw("average_cadence")} rpm")
         sb.appendLine()
 
         // ENVIRONMENT
         sb.appendLine("ENVIRONMENT")
-        sb.appendLine("Avg temp: ${src.fmtDecRaw("average_temp")} °C")
-        sb.appendLine("Min temp: ${src.fmtInt("min_temp", "°C")}")
-        sb.appendLine("Max temp: ${src.fmtInt("max_temp", "°C")}")
+        sb.appendLine("Avg temp: ${a.fmtDecRaw("average_temp")} °C")
+        sb.appendLine("Min temp: ${a.fmtInt("min_temp", "°C")}")
+        sb.appendLine("Max temp: ${a.fmtInt("max_temp", "°C")}")
         sb.appendLine()
 
-        // CORE TEMPERATURE
+        // CORE TEMPERATURE (non disponibile via API standard, placeholder)
         sb.appendLine("CORE TEMPERATURE")
-        sb.appendLine("Avg core temp: ${src.fmtDecRaw("avg_core_temp")}")
-        sb.appendLine("Max core temp: ${src.fmtDecRaw("max_core_temp")}")
-        sb.appendLine("Time > 38.3 °C: ${src.fmtInt("mins_above_38_3", "min")}")
+        sb.appendLine("Avg core temp: -")
+        sb.appendLine("Max core temp: -")
+        sb.appendLine("Time > 38.3 °C: -")
         sb.appendLine()
 
-        // FITNESS
+        // FITNESS — CTL/ATL/TSB vengono dall'attività stessa
         sb.appendLine("FITNESS")
-        sb.appendLine("CTL: ${act.fmtDecRaw("icu_ctl")}")
-        sb.appendLine("ATL: ${act.fmtDecRaw("icu_atl")}")
-        sb.appendLine("TSB: ${act.fmtDecRaw("icu_form")}")
+        sb.appendLine("CTL: ${a.fmtDecRaw("icu_ctl")}")
+        sb.appendLine("ATL: ${a.fmtDecRaw("icu_atl")}")
+        sb.appendLine("TSB: ${a.fmtDecRaw("icu_form")}")
         sb.appendLine()
 
         return sb.toString()
@@ -260,9 +255,8 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
     private fun JSONObject?.fmtDec(key: String, unit: String = ""): String {
         if (this == null) return "-"
         val v = optDouble(key, Double.NaN)
-        return if (v.isNaN()) "-"
-        else if (unit.isNotEmpty()) "${String.format("%.1f", v)} $unit"
-        else String.format("%.1f", v)
+        if (v.isNaN()) return "-"
+        return if (unit.isNotEmpty()) "${String.format("%.1f", v)} $unit" else String.format("%.1f", v)
     }
 
     private fun JSONObject?.fmtPercent(key: String): String {
@@ -283,25 +277,42 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         return if (m.isNaN()) "-" else "${String.format("%.2f", m / 1000)} km"
     }
 
-    private fun JSONObject?.fmtSleep(key: String): String {
+    // Sonno in secondi (sleepSecs)
+    private fun JSONObject?.fmtSleepSecs(key: String): String {
         if (this == null) return "-"
-        val v = optIntOrNull(key) ?: return "-"
-        return secsToHms(v * 60)
+        val secs = optIntOrNull(key) ?: return "-"
+        return secsToHms(secs)
     }
 
-    private fun JSONObject?.fmtSleepPattern(): String {
+    // Sonno come "1h30m" (DeepSleep, REMSleep)
+    private fun JSONObject?.fmtHm(key: String): String {
+        if (this == null) return "-"
+        val raw = optString(key, "").ifBlank { return "-" }
+        // già formattato come "1h30m" o intero minuti
+        return if (raw.contains("h") || raw.contains("m")) raw
+        else {
+            val mins = raw.toIntOrNull() ?: return raw
+            "${mins / 60}h${mins % 60}m"
+        }
+    }
+
+    private fun JSONObject?.fmtSleepQuality(): String {
         if (this == null) return "-"
         return when (optIntOrNull("sleepQuality")) {
             1    -> "Continuous"
             2, 3 -> "Interrupted"
-            else -> optString("sleepPattern", "-").ifBlank { "-" }
+            else -> "-"
         }
     }
-
 
     private fun JSONObject.optIntOrNull(key: String): Int? {
         if (!has(key) || isNull(key)) return null
         return runCatching { getInt(key) }.getOrNull()
+    }
+
+    private fun JSONObject.optLongOrNull(key: String): Long? {
+        if (!has(key) || isNull(key)) return null
+        return runCatching { getLong(key) }.getOrNull()
     }
 
     private fun secsToHms(secs: Int): String {

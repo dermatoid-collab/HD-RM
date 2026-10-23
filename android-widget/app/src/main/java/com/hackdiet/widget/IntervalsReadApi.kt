@@ -34,9 +34,12 @@ object IntervalsReadApi {
         return JSONArray(get(url, apiKey))
     }
 
-    fun getActivityDetail(apiKey: String, activityId: String): JSONObject {
-        val url = "$BASE/activity/$activityId"
-        return JSONObject(get(url, apiKey))
+    // Endpoint separato per gli intervalli dell'attività
+    fun getActivityIntervals(apiKey: String, activityId: String): JSONArray {
+        return try {
+            val obj = JSONObject(get("$BASE/activity/$activityId/intervals", apiKey))
+            obj.optJSONArray("icu_intervals") ?: JSONArray()
+        } catch (_: Exception) { JSONArray() }
     }
 
     // ── Wellness ──────────────────────────────────────────────────────────────
@@ -55,17 +58,15 @@ object IntervalsReadApi {
             val arr = JSONArray(get(url, apiKey))
             (0 until arr.length()).mapNotNull { i ->
                 val ev = arr.getJSONObject(i)
+                if (ev.optString("category") != "NOTE") return@mapNotNull null
                 val name = ev.optString("name", "")
                 val desc = ev.optString("description", "")
-                // Esclude note con "Coach", "Summary", "Brief" nel titolo
-                if (listOf("Coach", "Summary", "Brief").any { name.contains(it, ignoreCase = true) }) {
-                    null
-                } else {
-                    buildString {
-                        if (name.isNotBlank()) appendLine(name)
-                        if (desc.isNotBlank()) append(desc.trim())
-                    }.trim()
-                }
+                if (listOf("Coach", "Summary", "Brief").any { name.contains(it, ignoreCase = true) })
+                    return@mapNotNull null
+                buildString {
+                    if (name.isNotBlank()) appendLine(name)
+                    if (desc.isNotBlank()) append(desc.trim())
+                }.trim()
             }.filter { it.isNotBlank() }
         } catch (_: Exception) { emptyList() }
     }
