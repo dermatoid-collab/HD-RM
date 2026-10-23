@@ -34,6 +34,19 @@
                 android:resource="@xml/widget_info" />
         </receiver>
 
+        <!-- Widget Provider 2×1 -->
+        <receiver
+            android:name=".SyncWidget2x1"
+            android:exported="true"
+            android:label="HackDiet Sync 2×1">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_2x1" />
+        </receiver>
+
         <!-- WorkManager worker (implicit, no declaration needed) -->
 
     </application>

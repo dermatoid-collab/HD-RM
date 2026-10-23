@@ -114,6 +114,7 @@ class SettingsActivity : Activity() {
         btn.text = "⏳ In corso…"
         Prefs.set(this, Prefs.KEY_LAST_RESULT, "⏳ In corso…")
         SyncWidget.updateAll(this)
+        SyncWidget2x1.updateAll(this)
 
         val req = OneTimeWorkRequestBuilder<SyncWorker>()
             .setInputData(workDataOf(SyncWorker.KEY_READ_ONLY to readOnly))

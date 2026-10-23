@@ -98,8 +98,18 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             val finalMsg = msg.trim()
             Prefs.set(ctx, Prefs.KEY_LAST_RESULT, finalMsg)
             Prefs.set(ctx, Prefs.KEY_LAST_SYNC, ts)
+
+            // Salva i dati individuali per il widget 2×1
+            yesterdayData.kcalConsumed?.let { Prefs.set(ctx, Prefs.KEY_LAST_KCAL, it.toString()) }
+            val sleepParts = listOfNotNull(
+                todayData.deepSleepMin?.let { "D ${it}'" },
+                todayData.remSleepMin?.let { "R ${it}'" }
+            ).joinToString(" · ")
+            if (sleepParts.isNotEmpty()) Prefs.set(ctx, Prefs.KEY_LAST_SLEEP, sleepParts)
+
             Prefs.appendLog(ctx, detail)
             SyncWidget.updateAll(ctx)
+            SyncWidget2x1.updateAll(ctx)
             Result.success()
         } catch (e: Exception) {
             val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
@@ -107,6 +117,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             Prefs.set(ctx, Prefs.KEY_LAST_RESULT, errMsg)
             Prefs.appendLog(ctx, "── $ts ──────────────\n  ERRORE: ${e.message?.take(200)}")
             SyncWidget.updateAll(ctx)
+            SyncWidget2x1.updateAll(ctx)
             Result.failure()
         }
     }
