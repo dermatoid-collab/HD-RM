@@ -31,6 +31,7 @@ class SyncWidget : AppWidgetProvider() {
             }
             Prefs.set(ctx, Prefs.KEY_LAST_RESULT, "⏳ Sync in corso…")
             updateAll(ctx)
+            SyncWidget2x1.updateAll(ctx)
             WorkManager.getInstance(ctx)
                 .enqueue(OneTimeWorkRequestBuilder<SyncWorker>().build())
         }

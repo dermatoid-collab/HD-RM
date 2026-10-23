@@ -1,9 +1,11 @@
 package com.hackdiet.widget
 
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.view.View
 import android.widget.RemoteViews
@@ -101,6 +103,13 @@ class SyncWidget2x1 : AppWidgetProvider() {
             // usiamo un colore con alpha calcolato)
             val alpha42 = (textColor and 0x00FFFFFF) or (0x6B shl 24) // 0x6B ≈ 107 ≈ 0.42 * 255
             rv.setTextColor(R.id.tv2_datetime, alpha42)
+
+            val intent = Intent(ctx, SyncWidget::class.java).apply { action = SyncWidget.ACTION_SYNC }
+            val pi = PendingIntent.getBroadcast(
+                ctx, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            rv.setOnClickPendingIntent(R.id.widget_root, pi)
 
             return rv
         }
