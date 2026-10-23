@@ -34,6 +34,12 @@
                 android:resource="@xml/widget_info" />
         </receiver>
 
+        <!-- Daily Brief Activity -->
+        <activity
+            android:name=".DailyBriefActivity"
+            android:exported="false"
+            android:label="HS Daily Brief" />
+
         <!-- Widget Provider 2×1 -->
         <receiver
             android:name=".SyncWidget2x1"

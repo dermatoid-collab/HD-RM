@@ -73,12 +73,11 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
             val report = "── Daily Brief $ts ──────────────\n${sb.toString().trimEnd()}"
 
-            Prefs.appendLog(ctx, report)
             Prefs.set(ctx, Prefs.KEY_DAILY_BRIEF_LAST, report)
             Result.success()
         } catch (e: Exception) {
-            val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
-            Prefs.appendLog(ctx, "── Daily Brief $ts ──\n  ERRORE: ${e.message?.take(300)}")
+            Prefs.set(ctx, Prefs.KEY_DAILY_BRIEF_LAST,
+                "── Errore generazione Brief ──\n${e.message?.take(500)}")
             Result.failure()
         }
     }

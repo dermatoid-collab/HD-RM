@@ -46,6 +46,7 @@ class SettingsActivity : Activity() {
         btnRead = findViewById(R.id.btn_read)
         btnSync = findViewById(R.id.btn_sync)
         btnDailyBrief = findViewById(R.id.btn_daily_brief)
+        val btnViewBrief = findViewById<Button>(R.id.btn_view_brief)
         tvLog = findViewById(R.id.tv_log)
         val rgSleepFormat = findViewById<RadioGroup>(R.id.rg_sleep_format)
 
@@ -103,6 +104,11 @@ class SettingsActivity : Activity() {
             startDailyBrief()
         }
 
+        btnViewBrief.setOnClickListener {
+            startActivity(Intent(this, DailyBriefActivity::class.java))
+        }
+        btnViewBrief.isEnabled = Prefs.get(this, Prefs.KEY_DAILY_BRIEF_LAST).isNotBlank()
+
         findViewById<Button>(R.id.btn_export).setOnClickListener { launchExport() }
         findViewById<Button>(R.id.btn_import).setOnClickListener { launchImport() }
 
@@ -157,13 +163,12 @@ class SettingsActivity : Activity() {
                 if (info != null && info.state.isFinished) {
                     btnDailyBrief.isEnabled = true
                     btnDailyBrief.text = "📋 Genera HS Daily Brief"
-                    refreshLog()
                     val ok = info.state == androidx.work.WorkInfo.State.SUCCEEDED
-                    Toast.makeText(
-                        this@SettingsActivity,
-                        if (ok) "Daily Brief generato ✓" else "Errore generazione Brief",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    if (ok) {
+                        startActivity(Intent(this@SettingsActivity, DailyBriefActivity::class.java))
+                    } else {
+                        Toast.makeText(this@SettingsActivity, "Errore generazione Brief", Toast.LENGTH_LONG).show()
+                    }
                 } else {
                     handler.postDelayed(this, 2000)
                 }
