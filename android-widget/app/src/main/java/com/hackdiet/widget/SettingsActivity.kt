@@ -1,6 +1,8 @@
 package com.hackdiet.widget
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -13,6 +15,10 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import org.json.JSONObject
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 
 class SettingsActivity : Activity() {
 
@@ -20,6 +26,9 @@ class SettingsActivity : Activity() {
     private lateinit var btnRead: Button
     private lateinit var btnSync: Button
     private val handler = Handler(Looper.getMainLooper())
+
+    private val REQ_EXPORT = 1001
+    private val REQ_IMPORT = 1002
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,6 +88,9 @@ class SettingsActivity : Activity() {
             }
             startWorker(readOnly = false)
         }
+
+        findViewById<Button>(R.id.btn_export).setOnClickListener { launchExport() }
+        findViewById<Button>(R.id.btn_import).setOnClickListener { launchImport() }
     }
 
     override fun onResume() {
@@ -109,6 +121,77 @@ class SettingsActivity : Activity() {
         WorkManager.getInstance(this).enqueue(req)
 
         pollWorkState(req.id, btn, if (readOnly) "🔍 Leggi dati da Garmin" else "▶ Sincronizza ora → Intervals")
+    }
+
+    private fun launchExport() {
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, "hackdiet_backup.json")
+        }
+        startActivityForResult(intent, REQ_EXPORT)
+    }
+
+    private fun launchImport() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+        }
+        startActivityForResult(intent, REQ_IMPORT)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode != RESULT_OK || data?.data == null) return
+        val uri = data.data!!
+        when (requestCode) {
+            REQ_EXPORT -> exportSettings(uri)
+            REQ_IMPORT -> importSettings(uri)
+        }
+    }
+
+    private fun exportSettings(uri: Uri) {
+        try {
+            val json = JSONObject().apply {
+                put(Prefs.KEY_GARMIN_API_KEY, Prefs.get(this@SettingsActivity, Prefs.KEY_GARMIN_API_KEY))
+                put(Prefs.KEY_INTERVALS_API_KEY, Prefs.get(this@SettingsActivity, Prefs.KEY_INTERVALS_API_KEY))
+                put(Prefs.KEY_INTERVALS_ATHLETE_ID, Prefs.get(this@SettingsActivity, Prefs.KEY_INTERVALS_ATHLETE_ID))
+                put(Prefs.KEY_SLEEP_FORMAT, Prefs.get(this@SettingsActivity, Prefs.KEY_SLEEP_FORMAT, "hm"))
+            }
+            contentResolver.openOutputStream(uri)?.use { out ->
+                OutputStreamWriter(out).use { it.write(json.toString(2)) }
+            }
+            Toast.makeText(this, "Impostazioni esportate", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Errore esportazione: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun importSettings(uri: Uri) {
+        try {
+            val text = contentResolver.openInputStream(uri)?.use { input ->
+                BufferedReader(InputStreamReader(input)).readText()
+            } ?: return
+            val json = JSONObject(text)
+            fun maybeSet(key: String) {
+                if (json.has(key)) Prefs.set(this, key, json.getString(key))
+            }
+            maybeSet(Prefs.KEY_GARMIN_API_KEY)
+            maybeSet(Prefs.KEY_INTERVALS_API_KEY)
+            maybeSet(Prefs.KEY_INTERVALS_ATHLETE_ID)
+            maybeSet(Prefs.KEY_SLEEP_FORMAT)
+
+            // Aggiorna i campi visibili
+            findViewById<EditText>(R.id.et_garmin_key).setText(Prefs.get(this, Prefs.KEY_GARMIN_API_KEY))
+            findViewById<EditText>(R.id.et_intervals_key).setText(Prefs.get(this, Prefs.KEY_INTERVALS_API_KEY))
+            findViewById<EditText>(R.id.et_athlete_id).setText(Prefs.get(this, Prefs.KEY_INTERVALS_ATHLETE_ID))
+            val fmt = Prefs.get(this, Prefs.KEY_SLEEP_FORMAT, "hm")
+            findViewById<RadioGroup>(R.id.rg_sleep_format).check(if (fmt == "min") R.id.rb_min else R.id.rb_hm)
+
+            Toast.makeText(this, "Impostazioni importate", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Errore importazione: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun pollWorkState(id: java.util.UUID, btn: Button, originalLabel: String) {
