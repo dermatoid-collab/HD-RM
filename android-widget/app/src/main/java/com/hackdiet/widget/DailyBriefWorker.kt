@@ -183,18 +183,20 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         sb.appendLine("Pw:HR (full ride decoupling): ${a.fmtPercent("decoupling")}")
         sb.appendLine()
 
-        // POWER ZONES — icu_zone_times, nome da spec OpenAPI ufficiale
+        // POWER ZONES — icu_zone_times: array di oggetti {"id":"Z1","secs":109}
         sb.appendLine("POWER ZONES")
         val pzt = detail?.optJSONArray("icu_zone_times")
             ?: a.optJSONArray("icu_zone_times")
-        val pzLabels = listOf("Z1","Z2","Z3","Z4","Z5","Z6+","Sweet Spot")
+        val pzFallbackLabels = listOf("Z1","Z2","Z3","Z4","Z5","Z6","Z7","SS")
         if (pzt != null && pzt.length() > 0) {
             for (z in 0 until pzt.length()) {
-                val label = pzLabels.getOrElse(z) { "Z${z+1}" }
-                sb.appendLine("$label: ${secsToHms(pzt.optInt(z, 0))}")
+                val item = pzt.optJSONObject(z)
+                val label = item?.optString("id") ?: pzFallbackLabels.getOrElse(z) { "Z${z+1}" }
+                val secs  = item?.optInt("secs", 0) ?: 0
+                sb.appendLine("$label: ${secsToHms(secs)}")
             }
         } else {
-            pzLabels.forEach { sb.appendLine("$it: -") }
+            pzFallbackLabels.forEach { sb.appendLine("$it: -") }
         }
 
         // Intervals: già recuperati dall'endpoint separato, filtra WORK o con label
