@@ -66,8 +66,8 @@ object IntervalsReadApi {
             (0 until arr.length()).mapNotNull { i ->
                 val ev = arr.getJSONObject(i)
                 if (ev.optString("category") != "NOTE") return@mapNotNull null
-                val name = ev.optString("name", "")
-                val desc = ev.optString("description", "")
+                val name = if (ev.isNull("name")) "" else ev.optString("name", "")
+                val desc = if (ev.isNull("description")) "" else ev.optString("description", "")
                 if (listOf("Coach", "Summary", "Brief").any { name.contains(it, ignoreCase = true) })
                     return@mapNotNull null
                 buildString {

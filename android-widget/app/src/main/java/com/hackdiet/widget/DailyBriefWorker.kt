@@ -67,34 +67,6 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             sb.appendLine("Notes (today):")
             sb.appendLine(if (notesToday.isEmpty()) "-" else notesToday.joinToString("\n\n"))
 
-            // Sezione DEBUG temporanea: mostra campi grezzi dal primo risultato
-            if (activities.length() > 0) {
-                val a0 = activities.getJSONObject(0)
-                val actId0 = a0.optString("id", "")
-                val det0 = if (actId0.isNotBlank())
-                    runCatching { IntervalsReadApi.getActivityDetail(apiKey, actId0) }.getOrNull()
-                else null
-                sb.appendLine()
-                sb.appendLine("── DEBUG (rimuovere dopo verifica) ──")
-                sb.appendLine("Lista: icu_rpe=${a0.opt("icu_rpe")} feel=${a0.opt("feel")}")
-                sb.appendLine("Lista: p_max=${a0.opt("p_max")}")
-                sb.appendLine("Lista: icu_zone_times=${a0.opt("icu_zone_times")}")
-                sb.appendLine("Lista: icu_hr_zone_times=${a0.opt("icu_hr_zone_times")}")
-                if (det0 != null) {
-                    sb.appendLine("Detail: icu_rpe=${det0.opt("icu_rpe")} feel=${det0.opt("feel")}")
-                    sb.appendLine("Detail: p_max=${det0.opt("p_max")}")
-                    sb.appendLine("Detail: icu_zone_times=${det0.opt("icu_zone_times")}")
-                    sb.appendLine("Detail: icu_hr_zone_times=${det0.opt("icu_hr_zone_times")}")
-                    // dump tutte le chiavi che contengono "zone" o "rpe" o "p_max"
-                    val keys = det0.keys().asSequence().filter { k ->
-                        k.contains("zone", true) || k.contains("rpe", true) ||
-                        k == "p_max" || k == "feel" || k.contains("perceived", true)
-                    }.sorted().toList()
-                    sb.appendLine("Detail keys con zone/rpe/pmax: $keys")
-                } else {
-                    sb.appendLine("Detail: FETCH FALLITO per id=$actId0")
-                }
-            }
 
             val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
             Prefs.set(ctx, Prefs.KEY_DAILY_BRIEF_LAST,
@@ -212,6 +184,7 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             workIntervals.forEach { iv ->
                 val durSecs = iv.optInt("moving_time", 0).takeIf { it > 0 }
                     ?: iv.optInt("elapsed_time", 0)
+                if (durSecs == 0) return@forEach
                 val mins  = durSecs / 60
                 val watts = iv.optIntOrNull("average_watts") ?: 0
                 val hr    = iv.optIntOrNull("average_heartrate")
@@ -233,11 +206,11 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         sb.appendLine("LTHR: ${a.fmtInt("lthr", "bpm")}")
         sb.appendLine()
 
-        // HR ZONES — dal dettaglio o dalla lista
+        // HR ZONES — dal dettaglio o dalla lista (7 zone in Intervals.icu)
         sb.appendLine("HR ZONES")
         val hzt = detail?.optJSONArray("icu_hr_zone_times")
             ?: a.optJSONArray("icu_hr_zone_times")
-        val hzLabels = listOf("Z1","Z2","Z3","Z4","Z5+")
+        val hzLabels = listOf("Z1","Z2","Z3","Z4","Z5","Z6","Z7")
         if (hzt != null && hzt.length() > 0) {
             for (z in 0 until hzt.length()) {
                 val label = hzLabels.getOrElse(z) { "Z${z+1}" }
@@ -267,11 +240,14 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         sb.appendLine("Time > 38.3 °C: -")
         sb.appendLine()
 
-        // FITNESS — CTL/ATL/TSB vengono dall'attività stessa
+        // FITNESS — CTL/ATL/TSB (icu_form non sempre presente, calcolo da CTL-ATL)
         sb.appendLine("FITNESS")
-        sb.appendLine("CTL: ${a.fmtDecRaw("icu_ctl")}")
-        sb.appendLine("ATL: ${a.fmtDecRaw("icu_atl")}")
-        sb.appendLine("TSB: ${a.fmtDecRaw("icu_form")}")
+        val ctl = a.optDouble("icu_ctl", Double.NaN)
+        val atl = a.optDouble("icu_atl", Double.NaN)
+        val tsbVal = if (!ctl.isNaN() && !atl.isNaN()) ctl - atl else Double.NaN
+        sb.appendLine("CTL: ${if (ctl.isNaN()) "-" else String.format("%.2f", ctl)}")
+        sb.appendLine("ATL: ${if (atl.isNaN()) "-" else String.format("%.2f", atl)}")
+        sb.appendLine("TSB: ${if (tsbVal.isNaN()) "-" else String.format("%.2f", tsbVal)}")
         sb.appendLine()
 
         return sb.toString()
