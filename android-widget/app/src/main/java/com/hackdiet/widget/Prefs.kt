@@ -19,6 +19,8 @@ object Prefs {
     const val KEY_WIDGET_BG_COLOR = "widget_bg_color"   // hex es. "#000000"
     const val KEY_WIDGET_BG_ALPHA = "widget_bg_alpha"   // 0–100 come stringa
     const val KEY_DAILY_BRIEF_LAST = "daily_brief_last"
+    const val KEY_RUN_SYNC_OK = "run_sync_ok"      // "1" = ok, altro = no (tap sul widget)
+    const val KEY_RUN_BRIEF_OK = "run_brief_ok"
     private const val MAX_LOG_LINES = 50
 
     private fun prefs(ctx: Context) = EncryptedSharedPreferences.create(

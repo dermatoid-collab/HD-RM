@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.widget.RemoteViews
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -32,8 +33,14 @@ class SyncWidget : AppWidgetProvider() {
             Prefs.set(ctx, Prefs.KEY_LAST_RESULT, "⏳ Sync in corso…")
             updateAll(ctx)
             SyncWidget2x1.updateAll(ctx)
-            WorkManager.getInstance(ctx)
-                .enqueue(OneTimeWorkRequestBuilder<SyncWorker>().build())
+            Prefs.set(ctx, Prefs.KEY_RUN_SYNC_OK, "")
+            Prefs.set(ctx, Prefs.KEY_RUN_BRIEF_OK, "")
+            val sync = OneTimeWorkRequestBuilder<SyncWorker>()
+                .setInputData(workDataOf(SyncWorker.KEY_CHAIN to true)).build()
+            val brief = OneTimeWorkRequestBuilder<DailyBriefWorker>()
+                .setInputData(workDataOf(DailyBriefWorker.KEY_CHAIN to true)).build()
+            val finish = OneTimeWorkRequestBuilder<ChainFinishWorker>().build()
+            WorkManager.getInstance(ctx).beginWith(sync).then(brief).then(finish).enqueue()
         }
     }
 

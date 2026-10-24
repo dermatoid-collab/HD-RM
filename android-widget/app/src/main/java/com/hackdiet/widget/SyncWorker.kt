@@ -11,11 +11,13 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
 
     companion object {
         const val KEY_READ_ONLY = "read_only"
+        const val KEY_CHAIN = "chain"
     }
 
     override suspend fun doWork(): Result {
         val ctx = applicationContext
         val readOnly = inputData.getBoolean(KEY_READ_ONLY, false)
+        val chain = inputData.getBoolean(KEY_CHAIN, false)
         return try {
             val garminKey = Prefs.get(ctx, Prefs.KEY_GARMIN_API_KEY)
             val intervalsKey = Prefs.get(ctx, Prefs.KEY_INTERVALS_API_KEY)
@@ -110,6 +112,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             Prefs.appendLog(ctx, detail)
             SyncWidget.updateAll(ctx)
             SyncWidget2x1.updateAll(ctx)
+            Prefs.set(ctx, Prefs.KEY_RUN_SYNC_OK, "1")
             Result.success()
         } catch (e: Exception) {
             val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
@@ -118,7 +121,9 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             Prefs.appendLog(ctx, "── $ts ──────────────\n  ERRORE: ${e.message?.take(200)}")
             SyncWidget.updateAll(ctx)
             SyncWidget2x1.updateAll(ctx)
-            Result.failure()
+            Prefs.set(ctx, Prefs.KEY_RUN_SYNC_OK, "0")
+            // in catena il Brief deve partire comunque: il fallimento è registrato in KEY_RUN_SYNC_OK
+            if (chain) Result.success() else Result.failure()
         }
     }
 }

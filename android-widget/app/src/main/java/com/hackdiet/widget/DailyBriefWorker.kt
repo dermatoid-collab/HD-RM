@@ -11,8 +11,13 @@ import java.time.format.DateTimeFormatter
 
 class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
 
+    companion object {
+        const val KEY_CHAIN = "chain"
+    }
+
     override suspend fun doWork(): Result {
         val ctx = applicationContext
+        val chain = inputData.getBoolean(KEY_CHAIN, false)
         return try {
             val apiKey    = Prefs.get(ctx, Prefs.KEY_INTERVALS_API_KEY)
             val athleteId = Prefs.get(ctx, Prefs.KEY_INTERVALS_ATHLETE_ID)
@@ -84,11 +89,13 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
             Prefs.set(ctx, Prefs.KEY_DAILY_BRIEF_LAST,
                 "── Daily Brief $ts ──────────────\n${sb.toString().trimEnd()}")
+            Prefs.set(ctx, Prefs.KEY_RUN_BRIEF_OK, "1")
             Result.success()
         } catch (e: Exception) {
             Prefs.set(ctx, Prefs.KEY_DAILY_BRIEF_LAST,
                 "── Errore generazione Brief ──\n${e.message?.take(500)}")
-            Result.failure()
+            Prefs.set(ctx, Prefs.KEY_RUN_BRIEF_OK, "0")
+            if (chain) Result.success() else Result.failure()
         }
     }
 
