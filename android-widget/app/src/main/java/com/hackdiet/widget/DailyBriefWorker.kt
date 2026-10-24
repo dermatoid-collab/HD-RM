@@ -25,6 +25,10 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             val notesYest     = IntervalsReadApi.getCalendarNotes(apiKey, athleteId, yesterday)
             val notesToday    = IntervalsReadApi.getCalendarNotes(apiKey, athleteId, today)
 
+            val vo2max = listOf(wellnessToday, wellnessYest)
+                .firstNotNullOfOrNull { w -> w?.takeIf { it.has("vo2max") && !it.isNull("vo2max") }?.optDouble("vo2max") }
+                ?.let { String.format("%.1f", it) } ?: "-"
+
             val sb = StringBuilder()
             sb.appendLine("Perform today's HS Daily Brief based on the following data.")
             sb.appendLine()
@@ -44,7 +48,7 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
                     val intervals = if (actId.isNotBlank())
                         runCatching { IntervalsReadApi.getActivityIntervals(apiKey, actId) }.getOrDefault(JSONArray())
                     else JSONArray()
-                    sb.append(formatActivity(act, detail, intervals, yesterday, i + 1, activities.length()))
+                    sb.append(formatActivity(act, detail, intervals, yesterday, i + 1, activities.length(), vo2max))
                 }
             }
 
@@ -87,7 +91,8 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         intervals: JSONArray,
         date: LocalDate,
         idx: Int,
-        total: Int
+        total: Int,
+        vo2max: String
     ): String {
         val sb = StringBuilder()
         val header = if (total > 1) "Yesterday Ride Summary #$idx:" else "Yesterday Ride Summary:"
@@ -143,8 +148,8 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         val workAboveKj = a.optLongOrNull("icu_joules_above_ftp")?.let { (it / 1000).toInt() }
         sb.appendLine("Work above FTP: ${workAboveKj?.let { "$it kJ" } ?: "-"}")
         sb.appendLine("Calories: ${a.fmtInt("calories", "kcal")}")
-        sb.appendLine("CHO used: ${a.fmtInt("icu_carbs_used", "g")}")
-        sb.appendLine("VO2max (latest): ${a.fmtInt("vo2max")}")
+        sb.appendLine("CHO used: ${a.fmtInt("carbs_used", "g")}")
+        sb.appendLine("VO2max (latest): $vo2max")
         sb.appendLine()
 
         // LOAD
