@@ -36,7 +36,7 @@ class ChainFinishWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
             if (!copied) copyNote = " (copia negli appunti non riuscita)"
         }
 
-        val title = "HD-RM Sync"
+        val title = "HD-RM Sync: ${if (syncOk && briefOk) "OK" else "NO"}"
         val text = "Sync: ${if (syncOk) "OK" else "NO"} - Brief: ${if (briefOk) "OK" else "NO"}$copyNote"
 
         val nm = NotificationManagerCompat.from(ctx)
