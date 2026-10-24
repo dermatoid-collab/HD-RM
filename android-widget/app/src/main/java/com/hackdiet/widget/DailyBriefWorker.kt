@@ -60,10 +60,16 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             sb.appendLine("Resting HR: ${wellnessToday.fmtInt("restingHR", "bpm")}")
             sb.appendLine("Sleep pattern: ${wellnessToday.fmtSleepQuality()}")
             sb.appendLine("Morning HRV (HRV-RM): ${wellnessToday.fmtDec("hrv")}")
+            sb.appendLine("Wellness date: ${wellnessToday.fmtStr("id")}")
+            sb.appendLine("Morning HRV-RM (HRVRM): ${wellnessToday.fmtDec("HRVRM")}")
+            sb.appendLine("Sleep score: ${wellnessToday.fmtDec("sleepScore")}")
+            sb.appendLine("Sleep quality: ${wellnessToday.fmtInt("sleepQuality")}")
             sb.appendLine()
             sb.appendLine("WELLNESS (yesterday):")
+            sb.appendLine("Wellness date: ${wellnessYest.fmtStr("id")}")
             sb.appendLine("Weight: ${wellnessYest.fmtDec("weight", "kg")}")
             sb.appendLine("KCal consumed: ${wellnessYest.fmtInt("kcalConsumed", "kcal")}")
+            sb.appendLine("VO2max: ${wellnessYest.fmtDec("vo2max")}")
             sb.appendLine()
             sb.appendLine("Notes (yesterday):")
             sb.appendLine(if (notesYest.isEmpty()) "-" else notesYest.joinToString("\n\n"))
@@ -109,6 +115,9 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         val workKj = workJ?.let { (it / 1000).toInt() }
 
         sb.appendLine("Date: $date")
+        val x = detail ?: a
+        sb.appendLine("Activity ID: ${x.fmtStr("id")}")
+        sb.appendLine("Activity type: ${x.fmtStr("type")}")
         sb.appendLine("Type: $typeLabel")
         sb.appendLine("Elapsed time: ${a.fmtSecs("elapsed_time")}")
         sb.appendLine("NP: ${np?.let { "$it W" } ?: "-"}")
@@ -190,12 +199,11 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
                 val durSecs = iv.optInt("moving_time", 0).takeIf { it > 0 }
                     ?: iv.optInt("elapsed_time", 0)
                 if (durSecs == 0) return@forEach
-                val mins  = durSecs / 60
                 val watts = iv.optIntOrNull("average_watts") ?: 0
                 val hr    = iv.optIntOrNull("average_heartrate")
                 val decoup = iv.optDouble("decoupling", Double.NaN)
                 val cad   = iv.optDouble("average_cadence", Double.NaN)
-                val parts = mutableListOf("1 × $mins min @ $watts W")
+                val parts = mutableListOf("1 × ${mmss(durSecs)} @ $watts W")
                 if (hr != null) parts.add("avg HR $hr bpm")
                 if (!decoup.isNaN()) parts.add("Pw:HR ${String.format("%.2f", decoup)}%")
                 if (!cad.isNaN()) parts.add("avg Cadence ${cad.toInt()} rpm")
@@ -238,11 +246,31 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         sb.appendLine("Max temp: ${a.fmtInt("max_temp", "°C")}")
         sb.appendLine()
 
-        // CORE TEMPERATURE (non disponibile via API standard, placeholder)
+        // CORE TEMPERATURE
+        val streamTypes = x.optJSONArray("stream_types")
+        fun hasStream(n: String) = streamTypes != null &&
+            (0 until streamTypes.length()).any { streamTypes.optString(it) == n }
+        fun streamLabel(n: String) = if (hasStream(n)) "available" else "-"
+        val coreIvs = x.optJSONArray("icu_intervals")
+        var maxCore = Double.NaN
+        if (coreIvs != null) for (i in 0 until coreIvs.length()) {
+            val m = coreIvs.optJSONObject(i)?.optJSONObject("heat")?.optDouble("max", Double.NaN) ?: Double.NaN
+            if (!m.isNaN() && (maxCore.isNaN() || m > maxCore)) maxCore = m
+        }
         sb.appendLine("CORE TEMPERATURE")
+        sb.appendLine("Core temperature stream: ${streamLabel("core_temperature")}")
+        sb.appendLine("Skin temperature stream: ${streamLabel("skin_temperature")}")
+        sb.appendLine("Heat Strain Index stream: ${streamLabel("heat_strain_index")}")
+        sb.appendLine("Alternative HSI stream: ${streamLabel("HeatStrainIndex")}")
         sb.appendLine("Avg core temp: -")
-        sb.appendLine("Max core temp: -")
+        sb.appendLine("Max core temp: ${if (maxCore.isNaN()) "-" else String.format("%.2f °C", maxCore)}")
         sb.appendLine("Time > 38.3 °C: -")
+        sb.appendLine("CORE Heat Training Load: ${x.fmtDecRaw("COREHeatTrainingLoad")}")
+        sb.appendLine("Heat Training Load: ${x.fmtDecRaw("HeatTrainingLoad")}")
+        sb.appendLine("CORE HTL estimated: ${x.fmtDecRaw("CoreHTLEst")}")
+        sb.appendLine("Heat Load: ${x.fmtDecRaw("HeatLoad")}")
+        sb.appendLine("HSI hours: ${x.fmtDecRaw("HSIh")}")
+        sb.appendLine("Time above heat threshold: ${x.fmtDecRaw("TimeAboveHeatThreshold")}")
         sb.appendLine()
 
         // FITNESS — CTL/ATL/TSB (icu_form non sempre presente, calcolo da CTL-ATL)
@@ -255,10 +283,25 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         sb.appendLine("TSB: ${if (tsbVal.isNaN()) "-" else String.format("%.2f", tsbVal)}")
         sb.appendLine()
 
+        sb.appendLine("ADDITIONAL ACTIVITY FIELDS")
+        sb.appendLine("Activity name: ${x.fmtStr("name")}")
+        sb.appendLine("Activity source: ${x.fmtStr("source")}")
+        sb.appendLine("Device: ${x.fmtStr("device_name")}")
+        sb.appendLine("Power meter: ${x.fmtStr("power_meter")}")
+        sb.appendLine("Activity updated: ${x.fmtStr("analyzed")}")
+        sb.appendLine()
+
         return sb.toString()
     }
 
     // ── Helpers estensioni JSONObject ──────────────────────────────────────────
+
+    private fun JSONObject?.fmtStr(key: String): String {
+        if (this == null || !has(key) || isNull(key)) return "-"
+        return optString(key, "").ifBlank { "-" }
+    }
+
+    private fun mmss(secs: Int) = String.format("%02d:%02d", secs / 60, secs % 60)
 
     private fun JSONObject?.fmtInt(key: String, unit: String = ""): String {
         if (this == null) return "-"

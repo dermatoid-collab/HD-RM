@@ -37,7 +37,7 @@ object IntervalsReadApi {
     // Dettaglio completo attività (zone, RPE, max power, ecc.)
     fun getActivityDetail(apiKey: String, activityId: String): JSONObject? {
         return try {
-            JSONObject(get("$BASE/activity/$activityId", apiKey))
+            JSONObject(get("$BASE/activity/$activityId?intervals=true", apiKey))
         } catch (_: Exception) { null }
     }
 
@@ -66,15 +66,19 @@ object IntervalsReadApi {
             (0 until arr.length()).mapNotNull { i ->
                 val ev = arr.getJSONObject(i)
                 if (ev.optString("category") != "NOTE") return@mapNotNull null
+                val evId = if (ev.isNull("id")) "-" else ev.optString("id", "-")
+                val evDate = if (ev.isNull("start_date_local")) "-" else ev.optString("start_date_local", "-")
+                val evCat = if (ev.isNull("category")) "-" else ev.optString("category", "-")
                 val name = if (ev.isNull("name")) "" else ev.optString("name", "")
                 val desc = if (ev.isNull("description")) "" else ev.optString("description", "")
                 if (listOf("Coach", "Summary", "Brief").any { name.contains(it, ignoreCase = true) })
                     return@mapNotNull null
                 buildString {
+                    appendLine("[Date: $evDate | Category: $evCat | ID: $evId]")
                     if (name.isNotBlank()) appendLine(name)
                     if (desc.isNotBlank()) append(desc.trim())
                 }.trim()
-            }.filter { it.isNotBlank() }
+            }.filter { it.lines().drop(1).any { l -> l.isNotBlank() } }
         } catch (_: Exception) { emptyList() }
     }
 }
