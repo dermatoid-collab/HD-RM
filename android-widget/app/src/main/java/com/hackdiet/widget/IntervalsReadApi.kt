@@ -49,6 +49,13 @@ object IntervalsReadApi {
         } catch (_: Exception) { JSONArray() }
     }
 
+    // Stream watts/heartrate (campioni a 1 Hz) per calcolare il decoupling mancante
+    fun getActivityStreams(apiKey: String, activityId: String): JSONArray? {
+        return try {
+            JSONArray(get("$BASE/activity/$activityId/streams.json?types=watts,heartrate", apiKey))
+        } catch (_: Exception) { null }
+    }
+
     // ── Wellness ──────────────────────────────────────────────────────────────
 
     fun getWellness(apiKey: String, athleteId: String, date: LocalDate): JSONObject? {

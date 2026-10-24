@@ -48,7 +48,9 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
                     val intervals = if (actId.isNotBlank())
                         runCatching { IntervalsReadApi.getActivityIntervals(apiKey, actId) }.getOrDefault(JSONArray())
                     else JSONArray()
-                    sb.append(formatActivity(act, detail, intervals, yesterday, i + 1, activities.length(), vo2max))
+                    sb.append(formatActivity(act, detail, intervals, yesterday, i + 1, activities.length(), vo2max) {
+                        IntervalsReadApi.getActivityStreams(apiKey, actId)
+                    })
                 }
             }
 
@@ -98,8 +100,10 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         date: LocalDate,
         idx: Int,
         total: Int,
-        vo2max: String
+        vo2max: String,
+        streamsProvider: () -> JSONArray?
     ): String {
+        val streams by lazy { runCatching { streamsProvider() }.getOrNull() }
         val sb = StringBuilder()
         val header = if (total > 1) "Yesterday Ride Summary #$idx:" else "Yesterday Ride Summary:"
         sb.appendLine(header)
@@ -201,11 +205,15 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
                 if (durSecs == 0) return@forEach
                 val watts = iv.optIntOrNull("average_watts") ?: 0
                 val hr    = iv.optIntOrNull("average_heartrate")
-                val decoup = iv.optDouble("decoupling", Double.NaN)
+                val apiDecoup = iv.optDouble("decoupling", Double.NaN)
+                val calcDecoup = if (apiDecoup.isNaN())
+                    calcDecoupling(streams, iv.optInt("start_index", -1), iv.optInt("end_index", -1))
+                else null
+                val decoup = if (!apiDecoup.isNaN()) apiDecoup else calcDecoup ?: Double.NaN
                 val cad   = iv.optDouble("average_cadence", Double.NaN)
                 val parts = mutableListOf("1 × ${mmss(durSecs)} @ $watts W")
                 if (hr != null) parts.add("avg HR $hr bpm")
-                if (!decoup.isNaN()) parts.add("Pw:HR ${String.format("%.2f", decoup)}%")
+                if (!decoup.isNaN()) parts.add("Pw:HR ${String.format("%.2f", decoup)}%${if (calcDecoup != null) " (calc)" else ""}")
                 if (!cad.isNaN()) parts.add("avg Cadence ${cad.toInt()} rpm")
                 sb.appendLine("  * ${parts.joinToString(", ")}")
             }
@@ -299,6 +307,36 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
     private fun JSONObject?.fmtStr(key: String): String {
         if (this == null || !has(key) || isNull(key)) return "-"
         return optString(key, "").ifBlank { "-" }
+    }
+
+    // Pw:HR = variazione % del rapporto potenza media / HR media tra prima e seconda metà
+    private fun calcDecoupling(streams: JSONArray?, start: Int, end: Int): Double? {
+        if (streams == null || start < 0 || end - start < 4) return null
+        fun series(type: String): JSONArray? {
+            for (i in 0 until streams.length()) {
+                val s = streams.optJSONObject(i)
+                if (s != null && s.optString("type") == type) return s.optJSONArray("data")
+            }
+            return null
+        }
+        val w = series("watts") ?: return null
+        val hr = series("heartrate") ?: return null
+        val e = minOf(end, w.length(), hr.length())
+        if (e - start < 4) return null
+        fun ratio(a: Int, b: Int): Double? {
+            var sw = 0.0
+            var sh = 0.0
+            for (i in a until b) {
+                if (w.isNull(i) || hr.isNull(i)) continue
+                sw += w.optDouble(i)
+                sh += hr.optDouble(i)
+            }
+            return if (sh == 0.0) null else sw / sh
+        }
+        val mid = start + (e - start) / 2
+        val r1 = ratio(start, mid) ?: return null
+        val r2 = ratio(mid, e) ?: return null
+        return if (r1 == 0.0) null else (r1 - r2) / r1 * 100
     }
 
     private fun mmss(secs: Int) = String.format("%02d:%02d", secs / 60, secs % 60)
