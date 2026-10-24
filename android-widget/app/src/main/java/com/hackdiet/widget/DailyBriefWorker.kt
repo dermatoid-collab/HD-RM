@@ -269,29 +269,25 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             if (!avgI.isNaN() && dur > 0) { wSum += avgI * dur; tSum += dur }
         }
         var avgCore = Double.NaN
-        var secsAbove: Int? = null
         val coreSeries = seriesOf(streams, "core_temperature")
         if (coreSeries != null) {
             var sum = 0.0
             var n = 0
-            var above = 0
             for (i in 0 until coreSeries.length()) {
                 if (coreSeries.isNull(i)) continue
                 val v = coreSeries.optDouble(i)
                 sum += v
                 n++
-                if (v > 38.3) above++
             }
-            if (n > 0) { avgCore = sum / n; secsAbove = above }
+            if (n > 0) avgCore = sum / n
         }
         if (avgCore.isNaN() && tSum > 0) avgCore = wSum / tSum
-        if (secsAbove == null && !maxCore.isNaN() && maxCore <= 38.3) secsAbove = 0
         sb.appendLine("CORE TEMPERATURE")
         sb.appendLine("Avg core temp: ${if (avgCore.isNaN()) "-" else String.format("%.2f °C", avgCore)}")
         sb.appendLine("Max core temp: ${if (maxCore.isNaN()) "-" else String.format("%.2f °C", maxCore)}")
-        sb.appendLine("Time > 38.3 °C: ${secsAbove?.let { secsToHms(it) } ?: "-"}")
         sb.appendLine("CORE Heat Training Load: ${x.fmtDecRaw("COREHeatTrainingLoad")}")
-        sb.appendLine("Time above heat threshold: ${x.fmtDecRaw("TimeAboveHeatThreshold")}")
+        val heatThrMin = x.optDouble("TimeAboveHeatThreshold", Double.NaN)
+        sb.appendLine("Time above heat threshold: ${if (heatThrMin.isNaN()) "-" else mmss(Math.round(heatThrMin * 60).toInt())}")
         sb.appendLine()
 
         // FITNESS — CTL/ATL/TSB (icu_form non sempre presente, calcolo da CTL-ATL)
