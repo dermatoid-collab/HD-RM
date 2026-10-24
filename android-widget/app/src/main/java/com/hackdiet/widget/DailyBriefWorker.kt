@@ -254,30 +254,42 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         sb.appendLine("Max temp: ${a.fmtInt("max_temp", "°C")}")
         sb.appendLine()
 
-        // CORE TEMPERATURE
-        val streamTypes = x.optJSONArray("stream_types")
-        fun hasStream(n: String) = streamTypes != null &&
-            (0 until streamTypes.length()).any { streamTypes.optString(it) == n }
-        fun streamLabel(n: String) = if (hasStream(n)) "available" else "-"
+        // CORE TEMPERATURE: da stream core_temperature, altrimenti derivata dagli intervalli (heat.avg/heat.max)
         val coreIvs = x.optJSONArray("icu_intervals")
         var maxCore = Double.NaN
+        var wSum = 0.0
+        var tSum = 0
         if (coreIvs != null) for (i in 0 until coreIvs.length()) {
-            val m = coreIvs.optJSONObject(i)?.optJSONObject("heat")?.optDouble("max", Double.NaN) ?: Double.NaN
+            val heat = coreIvs.optJSONObject(i)?.optJSONObject("heat") ?: continue
+            val m = heat.optDouble("max", Double.NaN)
             if (!m.isNaN() && (maxCore.isNaN() || m > maxCore)) maxCore = m
+            val avgI = heat.optDouble("avg", Double.NaN)
+            val dur = coreIvs.optJSONObject(i)?.optInt("t", 0) ?: 0
+            if (!avgI.isNaN() && dur > 0) { wSum += avgI * dur; tSum += dur }
         }
+        var avgCore = Double.NaN
+        var secsAbove: Int? = null
+        val coreSeries = seriesOf(streams, "core_temperature")
+        if (coreSeries != null) {
+            var sum = 0.0
+            var n = 0
+            var above = 0
+            for (i in 0 until coreSeries.length()) {
+                if (coreSeries.isNull(i)) continue
+                val v = coreSeries.optDouble(i)
+                sum += v
+                n++
+                if (v > 38.3) above++
+            }
+            if (n > 0) { avgCore = sum / n; secsAbove = above }
+        }
+        if (avgCore.isNaN() && tSum > 0) avgCore = wSum / tSum
+        if (secsAbove == null && !maxCore.isNaN() && maxCore <= 38.3) secsAbove = 0
         sb.appendLine("CORE TEMPERATURE")
-        sb.appendLine("Core temperature stream: ${streamLabel("core_temperature")}")
-        sb.appendLine("Skin temperature stream: ${streamLabel("skin_temperature")}")
-        sb.appendLine("Heat Strain Index stream: ${streamLabel("heat_strain_index")}")
-        sb.appendLine("Alternative HSI stream: ${streamLabel("HeatStrainIndex")}")
-        sb.appendLine("Avg core temp: -")
+        sb.appendLine("Avg core temp: ${if (avgCore.isNaN()) "-" else String.format("%.2f °C", avgCore)}")
         sb.appendLine("Max core temp: ${if (maxCore.isNaN()) "-" else String.format("%.2f °C", maxCore)}")
-        sb.appendLine("Time > 38.3 °C: -")
+        sb.appendLine("Time > 38.3 °C: ${secsAbove?.let { secsToHms(it) } ?: "-"}")
         sb.appendLine("CORE Heat Training Load: ${x.fmtDecRaw("COREHeatTrainingLoad")}")
-        sb.appendLine("Heat Training Load: ${x.fmtDecRaw("HeatTrainingLoad")}")
-        sb.appendLine("CORE HTL estimated: ${x.fmtDecRaw("CoreHTLEst")}")
-        sb.appendLine("Heat Load: ${x.fmtDecRaw("HeatLoad")}")
-        sb.appendLine("HSI hours: ${x.fmtDecRaw("HSIh")}")
         sb.appendLine("Time above heat threshold: ${x.fmtDecRaw("TimeAboveHeatThreshold")}")
         sb.appendLine()
 
@@ -312,15 +324,8 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
     // Pw:HR = variazione % del rapporto potenza media / HR media tra prima e seconda metà
     private fun calcDecoupling(streams: JSONArray?, start: Int, end: Int): Double? {
         if (streams == null || start < 0 || end - start < 4) return null
-        fun series(type: String): JSONArray? {
-            for (i in 0 until streams.length()) {
-                val s = streams.optJSONObject(i)
-                if (s != null && s.optString("type") == type) return s.optJSONArray("data")
-            }
-            return null
-        }
-        val w = series("watts") ?: return null
-        val hr = series("heartrate") ?: return null
+        val w = seriesOf(streams, "watts") ?: return null
+        val hr = seriesOf(streams, "heartrate") ?: return null
         val e = minOf(end, w.length(), hr.length())
         if (e - start < 4) return null
         fun ratio(a: Int, b: Int): Double? {
@@ -337,6 +342,15 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         val r1 = ratio(start, mid) ?: return null
         val r2 = ratio(mid, e) ?: return null
         return if (r1 == 0.0) null else (r1 - r2) / r1 * 100
+    }
+
+    private fun seriesOf(streams: JSONArray?, type: String): JSONArray? {
+        if (streams == null) return null
+        for (i in 0 until streams.length()) {
+            val s = streams.optJSONObject(i)
+            if (s != null && s.optString("type") == type) return s.optJSONArray("data")
+        }
+        return null
     }
 
     private fun mmss(secs: Int) = String.format("%02d:%02d", secs / 60, secs % 60)
