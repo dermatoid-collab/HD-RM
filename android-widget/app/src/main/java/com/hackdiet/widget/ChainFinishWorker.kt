@@ -36,8 +36,8 @@ class ChainFinishWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
             if (!copied) copyNote = " (copia negli appunti non riuscita)"
         }
 
-        val line1 = "Sync Garmin -> Intervals: ${if (syncOk) "OK" else "NO"}"
-        val line2 = "HS Daily Brief: ${if (briefOk) "OK" else "NO"}$copyNote"
+        val title = "HD-RM Sync"
+        val text = "Sync: ${if (syncOk) "OK" else "NO"} - Brief: ${if (briefOk) "OK" else "NO"}$copyNote"
 
         val nm = NotificationManagerCompat.from(ctx)
         val posted = nm.areNotificationsEnabled() && runCatching {
@@ -46,17 +46,16 @@ class ChainFinishWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
             )
             val n = NotificationCompat.Builder(ctx, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_widget)
-                .setContentTitle(line1)
-                .setContentText(line2)
+                .setContentTitle(title)
+                .setContentText(text)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setAutoCancel(true)
-                .setTimeoutAfter(10_000)
+                .setAutoCancel(false)
                 .build()
             nm.notify(NOTIFICATION_ID, n)
         }.isSuccess
         if (!posted) {
             Handler(Looper.getMainLooper()).post {
-                Toast.makeText(ctx, "$line1\n$line2", Toast.LENGTH_LONG).show()
+                Toast.makeText(ctx, "$title\n$text", Toast.LENGTH_LONG).show()
             }
         }
         return Result.success()
