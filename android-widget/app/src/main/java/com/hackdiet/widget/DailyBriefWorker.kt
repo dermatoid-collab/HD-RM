@@ -64,6 +64,7 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             sb.appendLine("Morning HRV (HRV-RM): ${wellnessToday.fmtDec("hrv")}")
             sb.appendLine("Wellness date: ${wellnessToday.fmtStr("id")}")
             sb.appendLine("Morning HRV-RM (HRVRM): ${wellnessToday.fmtDec("HRVRM")}")
+            sb.appendLine("ASIRM: ${wellnessToday.fmtStr("ASIRM")}")
             sb.appendLine("Sleep score: ${wellnessToday.fmtDec("sleepScore")}")
             sb.appendLine("Sleep quality: ${wellnessToday.fmtInt("sleepQuality")}")
             sb.appendLine()
