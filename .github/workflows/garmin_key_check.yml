@@ -23,13 +23,13 @@ jobs:
               --title "⚠️ Garmin Personal API Key scade il $EXPIRY_DATE ($DAYS_LEFT giorni)" \
               --body "## Azione richiesta
 
-La **Garmin Personal API Key** scade il **$EXPIRY_DATE** ($DAYS_LEFT giorni).
+          La **Garmin Personal API Key** scade il **$EXPIRY_DATE** ($DAYS_LEFT giorni).
 
-### Istruzioni per il rinnovo
+          ### Istruzioni per il rinnovo
 
-1. Vai su [Garmin Connect](https://connect.garmin.com) → Impostazioni → Personal API Key
-2. Genera una nuova key (scegli durata **1 anno**)
-3. Vai su GitHub → [repository hackdiet](https://github.com/dermatoid-collab/hackdiet) → Settings → Secrets and variables → Actions
-4. Aggiorna il secret \`GARMIN_PERSONAL_API_KEY\` con la nuova key
-5. Chiedi a Claude di aggiornare la data di scadenza nel database (\`garmin_key_expiry\`)"
+          1. Vai su [Garmin Connect](https://connect.garmin.com) → Impostazioni → Personal API Key
+          2. Genera una nuova key (scegli durata **1 anno**)
+          3. Vai su GitHub → [repository hackdiet](https://github.com/dermatoid-collab/hackdiet) → Settings → Secrets and variables → Actions
+          4. Aggiorna il secret \`GARMIN_PERSONAL_API_KEY\` con la nuova key
+          5. Chiedi a Claude di aggiornare la data di scadenza nel database (\`garmin_key_expiry\`)"
           fi
