@@ -273,13 +273,19 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         if (coreSeries != null) {
             var sum = 0.0
             var n = 0
+            var streamMax = Double.NaN
             for (i in 0 until coreSeries.length()) {
                 if (coreSeries.isNull(i)) continue
                 val v = coreSeries.optDouble(i)
+                if (v.isNaN()) continue
                 sum += v
                 n++
+                if (streamMax.isNaN() || v > streamMax) streamMax = v
             }
-            if (n > 0) avgCore = sum / n
+            if (n > 0) {
+                avgCore = sum / n
+                maxCore = streamMax
+            }
         }
         if (avgCore.isNaN() && tSum > 0) avgCore = wSum / tSum
         sb.appendLine("CORE TEMPERATURE")
