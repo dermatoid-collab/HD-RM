@@ -20,20 +20,20 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:gravity="center"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp">
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
 
         <ImageView
             android:id="@+id/iv_upload"
-            android:layout_width="25dp"
-            android:layout_height="25dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:src="@drawable/ic_widget"
             android:contentDescription="@null" />
 
         <ImageView
             android:id="@+id/iv_status_icon"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:layout_marginTop="3dp"
             android:src="@drawable/ic_alarm"
             android:contentDescription="@null"
@@ -45,7 +45,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:text="✓"
-            android:textSize="16sp"
+            android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#4ade80"
             android:visibility="gone" />
@@ -61,16 +61,29 @@
         android:gravity="center_vertical"
         android:paddingStart="2dp"
         android:paddingEnd="4dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp">
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/tv2_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="HD-RM Sync"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:includeFontPadding="false"
+            android:textColor="#ffffff"
+            android:fontFamily="monospace" />
 
         <TextView
             android:id="@+id/tv2_datetime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="--/-- · --:--"
-            android:textSize="11sp"
+            android:textSize="14sp"
             android:maxLines="1"
+            android:includeFontPadding="false"
             android:textColor="#64B5F6"
             android:fontFamily="monospace" />
 
@@ -79,8 +92,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="— kcal"
-            android:textSize="12sp"
+            android:textSize="14sp"
             android:maxLines="1"
+            android:includeFontPadding="false"
             android:textColor="#ffffff"
             android:fontFamily="monospace" />
 
@@ -89,8 +103,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="D—·R—"
-            android:textSize="12sp"
+            android:textSize="14sp"
             android:maxLines="1"
+            android:includeFontPadding="false"
             android:textColor="#ffffff"
             android:fontFamily="monospace" />
 

@@ -96,6 +96,7 @@ class SyncWidget2x1 : AppWidgetProvider() {
             rv.setTextViewText(R.id.tv2_kcal, kcalText)
             rv.setTextViewText(R.id.tv2_sleep, sleepText)
 
+            rv.setTextColor(R.id.tv2_title, textColor)
             rv.setTextColor(R.id.tv2_kcal, textColor)
             rv.setTextColor(R.id.tv2_sleep, textColor)
 
