@@ -29,9 +29,10 @@ class ChainFinishWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
 
         val msg = "Sync Garmin -> Intervals: ${if (syncOk) "OK" else "NO"}\n" +
             "HS Daily Brief: ${if (briefOk) "OK" else "NO"}$copyNote"
-        Handler(Looper.getMainLooper()).post {
+        // ritardo: il sistema mostra il suo "Copied" appena scriviamo gli appunti e coprirebbe il nostro Toast
+        Handler(Looper.getMainLooper()).postDelayed({
             Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
-        }
+        }, 2000)
         return Result.success()
     }
 }

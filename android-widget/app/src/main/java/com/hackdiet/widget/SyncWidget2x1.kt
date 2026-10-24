@@ -23,6 +23,7 @@ class SyncWidget2x1 : AppWidgetProvider() {
         private val COLOR_RED   = Color.parseColor("#ff5555")
         private val COLOR_WHITE = Color.WHITE
         private val COLOR_GRAY  = Color.parseColor("#555555")
+        private val COLOR_ARROW = Color.parseColor("#64B5F6")
 
         fun updateAll(ctx: Context) {
             val mgr = AppWidgetManager.getInstance(ctx)
@@ -95,14 +96,11 @@ class SyncWidget2x1 : AppWidgetProvider() {
             rv.setTextViewText(R.id.tv2_kcal, kcalText)
             rv.setTextViewText(R.id.tv2_sleep, sleepText)
 
-            rv.setTextColor(R.id.tv2_datetime, textColor)
             rv.setTextColor(R.id.tv2_kcal, textColor)
             rv.setTextColor(R.id.tv2_sleep, textColor)
 
-            // Applica alpha 0.42 alla datetime (RemoteViews non supporta alpha su TextView direttamente,
-            // usiamo un colore con alpha calcolato)
-            val alpha42 = (textColor and 0x00FFFFFF) or (0x6B shl 24) // 0x6B ≈ 107 ≈ 0.42 * 255
-            rv.setTextColor(R.id.tv2_datetime, alpha42)
+            // Data e ora: stesso colore della freccia (ic_widget.xml)
+            rv.setTextColor(R.id.tv2_datetime, COLOR_ARROW)
 
             val intent = Intent(ctx, SyncWidget::class.java).apply { action = SyncWidget.ACTION_SYNC }
             val pi = PendingIntent.getBroadcast(

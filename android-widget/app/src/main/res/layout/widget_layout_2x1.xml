@@ -71,7 +71,7 @@
             android:text="--/-- · --:--"
             android:textSize="9sp"
             android:maxLines="1"
-            android:textColor="#6Bffffff"
+            android:textColor="#64B5F6"
             android:fontFamily="monospace" />
 
         <TextView
