@@ -97,9 +97,8 @@ class SyncWidget : AppWidgetProvider() {
                 isToday -> BgState.OK
                 else -> BgState.STALE
             }
-            val fg = if (Prefs.isStateBg(ctx)) Prefs.contrastText(ctx, bgState) else textColor
-            views.setTextColor(R.id.tv_status, fg)
-            views.setTextColor(R.id.tv_prefix, fg)
+            views.setTextColor(R.id.tv_status, textColor)
+            views.setTextColor(R.id.tv_prefix, textColor)
 
             // Barra in alto: stesse regole del 2x1 (grigio in corso, verde sync di oggi, rosso altrimenti; rosso anche se errore)
             val barColor = when {

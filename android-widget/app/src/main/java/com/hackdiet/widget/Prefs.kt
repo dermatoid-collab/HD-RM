@@ -67,15 +67,6 @@ object Prefs {
         return Color.argb(a255, Color.red(base), Color.green(base), Color.blue(base))
     }
 
-    // Con lo sfondo per stato il testo usa bianco/nero in base alla luminosità effettiva:
-    // colore dello sfondo mescolato con l'opacità su un fondo scuro (come lo sfondo della home)
-    fun contrastText(ctx: Context, state: BgState): Int {
-        val c = runCatching { Color.parseColor(bgHex(ctx, state)) }.getOrDefault(Color.BLACK)
-        val alpha = (get(ctx, KEY_WIDGET_BG_ALPHA, "75").toIntOrNull()?.coerceIn(0, 100) ?: 75) / 100.0
-        val lum = (0.299 * Color.red(c) + 0.587 * Color.green(c) + 0.114 * Color.blue(c)) / 255 * alpha
-        return if (lum > 0.6) Color.BLACK else Color.WHITE
-    }
-
     fun isConfigured(ctx: Context) =
         get(ctx, KEY_GARMIN_API_KEY).isNotBlank() &&
         get(ctx, KEY_INTERVALS_API_KEY).isNotBlank() &&
