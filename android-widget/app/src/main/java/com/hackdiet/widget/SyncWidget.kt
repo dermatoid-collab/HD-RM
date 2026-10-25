@@ -61,10 +61,16 @@ class SyncWidget : AppWidgetProvider() {
             views.setTextViewText(R.id.tv_status, status)
             views.setTextViewText(R.id.tv_last, "")
 
-            // Bianco se sync di oggi, rosso se precedente o mai fatto
+            // Verde se sync di oggi riuscita; bianco se in corso o mai fatta; rosso se errore o sync di un giorno precedente
             val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM"))
             val isToday = lastSync.startsWith(today)
-            val textColor = if (isToday || lastSync.isBlank()) Color.WHITE else Color.rgb(255, 80, 80)
+            val textColor = when {
+                status.startsWith("⏳") -> Color.WHITE
+                status.startsWith("✗") -> Color.rgb(255, 80, 80)
+                isToday -> Color.parseColor("#4ade80")
+                lastSync.isBlank() -> Color.WHITE
+                else -> Color.rgb(255, 80, 80)
+            }
             views.setTextColor(R.id.tv_status, textColor)
 
             views.setInt(R.id.widget_root, "setBackgroundColor", Prefs.widgetBgColor(ctx))
