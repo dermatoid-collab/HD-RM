@@ -58,8 +58,16 @@ class SyncWidget2x1 : AppWidgetProvider() {
                 else         -> COLOR_RED   to COLOR_RED
             }
 
+            val bgState = when {
+                isInProgress -> BgState.PROGRESS
+                isToday -> BgState.OK
+                else -> BgState.STALE
+            }
+            val stateBg = Prefs.isStateBg(ctx)
+            val fg = if (stateBg) Prefs.contrastText(ctx, bgState) else textColor
+
             // Sfondo widget
-            rv.setInt(R.id.widget_root, "setBackgroundColor", Prefs.widgetBgColor(ctx))
+            rv.setInt(R.id.widget_root, "setBackgroundColor", Prefs.widgetBgColor(ctx, bgState))
 
             // Striscia
             rv.setInt(R.id.v_stripe, "setBackgroundColor", stripeColor)
@@ -74,7 +82,7 @@ class SyncWidget2x1 : AppWidgetProvider() {
                 isToday -> {
                     rv.setViewVisibility(R.id.iv_status_icon, View.GONE)
                     rv.setViewVisibility(R.id.tv_status_check, View.VISIBLE)
-                    rv.setTextColor(R.id.tv_status_check, COLOR_GREEN)
+                    rv.setTextColor(R.id.tv_status_check, if (stateBg) fg else COLOR_GREEN)
                 }
                 else -> {
                     rv.setViewVisibility(R.id.iv_status_icon, View.VISIBLE)
@@ -85,6 +93,7 @@ class SyncWidget2x1 : AppWidgetProvider() {
 
             // Upload icon opacity per in-progress (setImageAlpha: 0-255)
             rv.setInt(R.id.iv_upload, "setImageAlpha", if (isInProgress) 102 else 255)
+            if (stateBg) rv.setInt(R.id.iv_status_icon, "setColorFilter", fg)
 
             // Dati testo
             val datetimeText = if (lastSync.isNotEmpty()) lastSync else "--/-- · --:--"
@@ -95,9 +104,9 @@ class SyncWidget2x1 : AppWidgetProvider() {
             rv.setTextViewText(R.id.tv2_kcal, kcalText)
             rv.setTextViewText(R.id.tv2_sleep, sleepText)
 
-            rv.setTextColor(R.id.tv2_datetime, textColor)
-            rv.setTextColor(R.id.tv2_kcal, textColor)
-            rv.setTextColor(R.id.tv2_sleep, textColor)
+            rv.setTextColor(R.id.tv2_datetime, fg)
+            rv.setTextColor(R.id.tv2_kcal, fg)
+            rv.setTextColor(R.id.tv2_sleep, fg)
 
 
             val intent = Intent(ctx, SyncWidget::class.java).apply { action = SyncWidget.ACTION_SYNC }

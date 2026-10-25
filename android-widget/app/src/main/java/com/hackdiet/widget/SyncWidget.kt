@@ -91,8 +91,15 @@ class SyncWidget : AppWidgetProvider() {
                 lastSync.isBlank() -> Color.WHITE
                 else -> Color.rgb(255, 80, 80)
             }
-            views.setTextColor(R.id.tv_status, textColor)
-            views.setTextColor(R.id.tv_prefix, textColor)
+            val bgState = when {
+                status.startsWith("⏳") -> BgState.PROGRESS
+                status.startsWith("✗") -> BgState.STALE
+                isToday -> BgState.OK
+                else -> BgState.STALE
+            }
+            val fg = if (Prefs.isStateBg(ctx)) Prefs.contrastText(ctx, bgState) else textColor
+            views.setTextColor(R.id.tv_status, fg)
+            views.setTextColor(R.id.tv_prefix, fg)
 
             // Barra in alto: stesse regole del 2x1 (grigio in corso, verde sync di oggi, rosso altrimenti; rosso anche se errore)
             val barColor = when {
@@ -103,7 +110,7 @@ class SyncWidget : AppWidgetProvider() {
             }
             views.setInt(R.id.v1_bar, "setBackgroundColor", barColor)
 
-            views.setInt(R.id.widget_root, "setBackgroundColor", Prefs.widgetBgColor(ctx))
+            views.setInt(R.id.widget_root, "setBackgroundColor", Prefs.widgetBgColor(ctx, bgState))
 
             val intent = Intent(ctx, SyncWidget::class.java).apply { action = ACTION_SYNC }
             val pi = PendingIntent.getBroadcast(

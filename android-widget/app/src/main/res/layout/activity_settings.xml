@@ -127,31 +127,43 @@
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
 
-        <!-- Palette colori -->
-        <LinearLayout
+        <RadioGroup
+            android:id="@+id/rg_bg_mode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="12dp"
-            android:gravity="start">
+            android:orientation="vertical"
+            android:layout_marginBottom="8dp">
 
-            <View android:id="@+id/swatch_black"
-                android:layout_width="40dp" android:layout_height="40dp"
-                android:layout_marginEnd="8dp" android:background="#000000" />
-            <View android:id="@+id/swatch_darkgray"
-                android:layout_width="40dp" android:layout_height="40dp"
-                android:layout_marginEnd="8dp" android:background="#1C1C1E" />
-            <View android:id="@+id/swatch_night"
-                android:layout_width="40dp" android:layout_height="40dp"
-                android:layout_marginEnd="8dp" android:background="#0D1B2A" />
-            <View android:id="@+id/swatch_indigo"
-                android:layout_width="40dp" android:layout_height="40dp"
-                android:layout_marginEnd="8dp" android:background="#1A1A2E" />
-            <View android:id="@+id/swatch_white"
-                android:layout_width="40dp" android:layout_height="40dp"
-                android:background="#FFFFFF" />
+            <RadioButton
+                android:id="@+id/rb_bg_fixed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sfondo fisso" />
 
-        </LinearLayout>
+            <RadioButton
+                android:id="@+id/rb_bg_state"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sfondo che cambia con lo stato" />
+
+        </RadioGroup>
+
+        <!-- Colore fisso (palette costruita da codice) -->
+        <LinearLayout
+            android:id="@+id/ll_bg_fixed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Un colore per ogni stato (palette costruita da codice) -->
+        <LinearLayout
+            android:id="@+id/ll_bg_state"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginBottom="12dp" />
 
         <!-- Alpha seekbar -->
         <LinearLayout

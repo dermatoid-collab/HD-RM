@@ -11,6 +11,7 @@ import android.os.Looper
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.RadioGroup
 import android.widget.SeekBar
 import android.widget.TextView
@@ -182,47 +183,80 @@ class SettingsActivity : Activity() {
         }, 2000)
     }
 
-    private fun setupBgColorPicker() {
-        val swatches = listOf(
-            R.id.swatch_black    to "#000000",
-            R.id.swatch_darkgray to "#1C1C1E",
-            R.id.swatch_night    to "#0D1B2A",
-            R.id.swatch_indigo   to "#1A1A2E",
-            R.id.swatch_white    to "#FFFFFF"
-        )
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
-        val currentColor = Prefs.get(this, Prefs.KEY_WIDGET_BG_COLOR, "#000000")
+    private fun refreshWidgets() {
+        SyncWidget.updateAll(this)
+        SyncWidget2x1.updateAll(this)
+    }
+
+    private fun addSwatchRow(parent: LinearLayout, label: String?, key: String, default: String) {
+        if (label != null) {
+            parent.addView(TextView(this).apply {
+                text = label
+                textSize = 12f
+                setPadding(0, dp(6), 0, dp(4))
+            })
+        }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val swatches = mutableListOf<Pair<View, String>>()
+        fun highlight(selected: String) {
+            swatches.forEach { (v, hex) ->
+                val isSel = hex.equals(selected, ignoreCase = true)
+                v.background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.parseColor(hex))
+                    setStroke(if (isSel) dp(3) else dp(1), if (isSel) Color.WHITE else 0x66FFFFFF)
+                }
+            }
+        }
+        Prefs.BG_PALETTE.forEach { hex ->
+            val v = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginEnd = dp(6) }
+            }
+            swatches.add(v to hex)
+            row.addView(v)
+            v.setOnClickListener {
+                Prefs.set(this, key, hex)
+                highlight(hex)
+                refreshWidgets()
+            }
+        }
+        highlight(Prefs.get(this, key, default))
+        parent.addView(row)
+    }
+
+    private fun setupBgColorPicker() {
+        val llFixed = findViewById<LinearLayout>(R.id.ll_bg_fixed)
+        val llState = findViewById<LinearLayout>(R.id.ll_bg_state)
+        val rgMode = findViewById<RadioGroup>(R.id.rg_bg_mode)
+        llFixed.removeAllViews()
+        llState.removeAllViews()
+        addSwatchRow(llFixed, null, Prefs.KEY_WIDGET_BG_COLOR, "#000000")
+        addSwatchRow(llState, "Sync di oggi riuscita", Prefs.KEY_WIDGET_BG_OK, "#2E7D32")
+        addSwatchRow(llState, "Sync in corso", Prefs.KEY_WIDGET_BG_PROGRESS, "#FBC02D")
+        addSwatchRow(llState, "Errore o sync non di oggi", Prefs.KEY_WIDGET_BG_STALE, "#C62828")
+
+        fun showMode(state: Boolean) {
+            llFixed.visibility = if (state) View.GONE else View.VISIBLE
+            llState.visibility = if (state) View.VISIBLE else View.GONE
+        }
+        rgMode.setOnCheckedChangeListener(null)
+        val stateMode = Prefs.isStateBg(this)
+        rgMode.check(if (stateMode) R.id.rb_bg_state else R.id.rb_bg_fixed)
+        showMode(stateMode)
+        rgMode.setOnCheckedChangeListener { _, checkedId ->
+            val st = checkedId == R.id.rb_bg_state
+            Prefs.set(this, Prefs.KEY_WIDGET_BG_MODE, if (st) "state" else "fixed")
+            showMode(st)
+            refreshWidgets()
+        }
+
         val tvAlpha = findViewById<TextView>(R.id.tv_bg_alpha)
         val sbAlpha = findViewById<SeekBar>(R.id.sb_bg_alpha)
-
         val savedAlpha = Prefs.get(this, Prefs.KEY_WIDGET_BG_ALPHA, "75").toIntOrNull() ?: 75
         sbAlpha.progress = savedAlpha
         tvAlpha.text = "$savedAlpha%"
-
-        fun highlightSelected(selectedHex: String) {
-            swatches.forEach { (viewId, hex) ->
-                val v = findViewById<View>(viewId)
-                val d = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    setColor(Color.parseColor(hex))
-                    if (hex == selectedHex) {
-                        setStroke(3, Color.WHITE)
-                    }
-                }
-                v.background = d
-            }
-        }
-
-        highlightSelected(currentColor)
-
-        swatches.forEach { (viewId, hex) ->
-            findViewById<View>(viewId).setOnClickListener {
-                Prefs.set(this, Prefs.KEY_WIDGET_BG_COLOR, hex)
-                highlightSelected(hex)
-                SyncWidget.updateAll(this)
-                SyncWidget2x1.updateAll(this)
-            }
-        }
 
         sbAlpha.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
@@ -274,6 +308,10 @@ class SettingsActivity : Activity() {
                 put(Prefs.KEY_SLEEP_FORMAT, Prefs.get(this@SettingsActivity, Prefs.KEY_SLEEP_FORMAT, "hm"))
                 put(Prefs.KEY_WIDGET_BG_COLOR, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_COLOR, "#000000"))
                 put(Prefs.KEY_WIDGET_BG_ALPHA, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_ALPHA, "75"))
+                put(Prefs.KEY_WIDGET_BG_MODE, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_MODE, "fixed"))
+                put(Prefs.KEY_WIDGET_BG_OK, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_OK, "#2E7D32"))
+                put(Prefs.KEY_WIDGET_BG_PROGRESS, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_PROGRESS, "#FBC02D"))
+                put(Prefs.KEY_WIDGET_BG_STALE, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_STALE, "#C62828"))
             }
             contentResolver.openOutputStream(uri)?.use { out ->
                 OutputStreamWriter(out).use { it.write(json.toString(2)) }
@@ -299,6 +337,10 @@ class SettingsActivity : Activity() {
             maybeSet(Prefs.KEY_SLEEP_FORMAT)
             maybeSet(Prefs.KEY_WIDGET_BG_COLOR)
             maybeSet(Prefs.KEY_WIDGET_BG_ALPHA)
+            maybeSet(Prefs.KEY_WIDGET_BG_MODE)
+            maybeSet(Prefs.KEY_WIDGET_BG_OK)
+            maybeSet(Prefs.KEY_WIDGET_BG_PROGRESS)
+            maybeSet(Prefs.KEY_WIDGET_BG_STALE)
 
             // Aggiorna i campi visibili
             findViewById<EditText>(R.id.et_garmin_key).setText(Prefs.get(this, Prefs.KEY_GARMIN_API_KEY))
