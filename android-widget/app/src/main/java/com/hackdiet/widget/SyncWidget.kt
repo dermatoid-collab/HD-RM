@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.view.View
 import android.widget.RemoteViews
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -58,7 +59,20 @@ class SyncWidget : AppWidgetProvider() {
 
             val status = Prefs.get(ctx, Prefs.KEY_LAST_RESULT, "↑ Sync")
             val lastSync = Prefs.get(ctx, Prefs.KEY_LAST_SYNC, "")
-            views.setTextViewText(R.id.tv_status, status)
+
+            // Prima riga: freccia + simbolo di stato (✓ 🔍 ⏳ ✗ ↑); data e ora su una sola riga
+            val lines = status.split("\n")
+            val first = lines.first()
+            val sym = first.substringBefore(" ", first)
+            val hasSym = sym in listOf("✓", "🔍", "⏳", "✗", "↑")
+            val firstRest = if (hasSym) first.substringAfter(" ", "") else first
+            val structured = (sym == "✓" || sym == "🔍") && lines.size >= 2 &&
+                Regex("""\d{2}/\d{2}""").matches(firstRest) && Regex("""\d{2}:\d{2}""").matches(lines[1])
+            val body = if (structured) listOf("$firstRest ${lines[1]}") + lines.drop(2)
+                else listOfNotNull(firstRest.takeIf { it.isNotBlank() }) + lines.drop(1)
+            views.setTextViewText(R.id.tv_prefix, if (hasSym) sym else "")
+            views.setViewVisibility(R.id.tv_prefix, if (hasSym) View.VISIBLE else View.GONE)
+            views.setTextViewText(R.id.tv_status, body.joinToString("\n"))
             views.setTextViewText(R.id.tv_last, "")
 
             // Verde se sync di oggi riuscita; bianco se in corso o mai fatta; rosso se errore o sync di un giorno precedente
@@ -72,6 +86,7 @@ class SyncWidget : AppWidgetProvider() {
                 else -> Color.rgb(255, 80, 80)
             }
             views.setTextColor(R.id.tv_status, textColor)
+            views.setTextColor(R.id.tv_prefix, textColor)
 
             // Barra in alto: stesse regole del 2x1 (grigio in corso, verde sync di oggi, rosso altrimenti; rosso anche se errore)
             val barColor = when {
@@ -91,6 +106,7 @@ class SyncWidget : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.tv_status, pi)
             views.setOnClickPendingIntent(R.id.tv_last, pi)
+            views.setOnClickPendingIntent(R.id.tv_prefix, pi)
 
             mgr.updateAppWidget(id, views)
         }
