@@ -30,12 +30,12 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginBottom="2dp">
+            android:layout_marginBottom="8dp">
 
             <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:src="@drawable/ic_widget"
+                android:layout_width="11dp"
+                android:layout_height="13dp"
+                android:src="@drawable/ic_arrow_tight"
                 android:scaleType="fitCenter" />
 
             <TextView
