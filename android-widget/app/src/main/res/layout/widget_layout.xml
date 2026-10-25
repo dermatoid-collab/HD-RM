@@ -59,7 +59,8 @@
             android:textSize="10sp"
             android:textColor="#FFFFFF"
             android:gravity="center"
-            android:lineSpacingMultiplier="1.2" />
+            android:includeFontPadding="false"
+            android:lineSpacingMultiplier="1.0" />
 
         <TextView
             android:id="@+id/tv_last"

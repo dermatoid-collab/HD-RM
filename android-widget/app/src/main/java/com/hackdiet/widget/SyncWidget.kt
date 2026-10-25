@@ -78,7 +78,9 @@ class SyncWidget : AppWidgetProvider() {
                 else listOfNotNull(firstRest.takeIf { it.isNotBlank() }) + lines.drop(1)
             views.setTextViewText(R.id.tv_prefix, if (hasSym) sym else "")
             views.setViewVisibility(R.id.tv_prefix, if (hasSym) View.VISIBLE else View.GONE)
-            views.setTextViewText(R.id.tv_status, body.joinToString("\n") { compactSleep(it) })
+            // sync riuscita senza dati di sonno (deep/REM non ancora disponibili): riga segnaposto, come nel 2x1
+            val shown = if (structured && body.none { SLEEP_LINE.matches(it) }) body + "D—·R—" else body
+            views.setTextViewText(R.id.tv_status, shown.joinToString("\n") { compactSleep(it) })
             views.setTextViewText(R.id.tv_last, "")
 
             // Verde se sync di oggi riuscita; bianco se in corso o mai fatta; rosso se errore o sync di un giorno precedente
