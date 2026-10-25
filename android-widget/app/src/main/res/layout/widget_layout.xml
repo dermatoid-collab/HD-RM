@@ -10,7 +10,7 @@
     <ImageView
         android:id="@+id/v1_bar"
         android:layout_width="match_parent"
-        android:layout_height="2dp"
+        android:layout_height="4dp"
         android:background="#4ade80"
         android:contentDescription="@null" />
 
