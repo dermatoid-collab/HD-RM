@@ -4,34 +4,53 @@
     android:layout_height="match_parent"
     android:id="@+id/widget_root"
     android:orientation="vertical"
-    android:gravity="center"
-    android:background="@drawable/widget_bg"
-    android:padding="6dp">
+    android:background="@drawable/widget_bg">
 
+    <!-- Barra colorata in alto, a filo con il bordo -->
     <ImageView
-        android:layout_width="18dp"
-        android:layout_height="18dp"
-        android:src="@drawable/ic_widget"
-        android:scaleType="fitCenter"
-        android:layout_marginBottom="2dp" />
+        android:id="@+id/v1_bar"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#4ade80"
+        android:contentDescription="@null" />
 
-    <TextView
-        android:id="@+id/tv_status"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="HD-RM Sync"
-        android:textSize="10sp"
-        android:textColor="#FFFFFF"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
         android:gravity="center"
-        android:lineSpacingMultiplier="1.2" />
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="6dp">
 
-    <TextView
-        android:id="@+id/tv_last"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="9sp"
-        android:textColor="#AAFFFFFF"
-        android:visibility="gone" />
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_widget"
+            android:scaleType="fitCenter"
+            android:layout_marginBottom="2dp" />
+
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="HD-RM Sync"
+            android:textSize="10sp"
+            android:textColor="#FFFFFF"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.2" />
+
+        <TextView
+            android:id="@+id/tv_last"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="9sp"
+            android:textColor="#AAFFFFFF"
+            android:visibility="gone" />
+
+    </LinearLayout>
 
 </LinearLayout>

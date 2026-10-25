@@ -73,6 +73,15 @@ class SyncWidget : AppWidgetProvider() {
             }
             views.setTextColor(R.id.tv_status, textColor)
 
+            // Barra in alto: stesse regole del 2x1 (grigio in corso, verde sync di oggi, rosso altrimenti; rosso anche se errore)
+            val barColor = when {
+                status.startsWith("⏳") -> Color.parseColor("#555555")
+                status.startsWith("✗") -> Color.parseColor("#ff5555")
+                isToday -> Color.parseColor("#4ade80")
+                else -> Color.parseColor("#ff5555")
+            }
+            views.setInt(R.id.v1_bar, "setBackgroundColor", barColor)
+
             views.setInt(R.id.widget_root, "setBackgroundColor", Prefs.widgetBgColor(ctx))
 
             val intent = Intent(ctx, SyncWidget::class.java).apply { action = ACTION_SYNC }
