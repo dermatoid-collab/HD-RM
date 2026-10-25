@@ -54,6 +54,12 @@ class SyncWidget : AppWidgetProvider() {
             ids.forEach { updateWidget(ctx, mgr, it) }
         }
 
+        private val SLEEP_LINE = Regex("""^[DR]\s*\d+'(\s*•\s*[DR]\s*\d+')?$""")
+
+        // "D 100' • R 100'" -> "D100'•R100'" (solo la riga del sonno)
+        private fun compactSleep(line: String) =
+            if (SLEEP_LINE.matches(line)) line.replace(Regex("""\s+"""), "") else line
+
         private fun updateWidget(ctx: Context, mgr: AppWidgetManager, id: Int) {
             val views = RemoteViews(ctx.packageName, R.layout.widget_layout)
 
@@ -72,7 +78,7 @@ class SyncWidget : AppWidgetProvider() {
                 else listOfNotNull(firstRest.takeIf { it.isNotBlank() }) + lines.drop(1)
             views.setTextViewText(R.id.tv_prefix, if (hasSym) sym else "")
             views.setViewVisibility(R.id.tv_prefix, if (hasSym) View.VISIBLE else View.GONE)
-            views.setTextViewText(R.id.tv_status, body.joinToString("\n"))
+            views.setTextViewText(R.id.tv_status, body.joinToString("\n") { compactSleep(it) })
             views.setTextViewText(R.id.tv_last, "")
 
             // Verde se sync di oggi riuscita; bianco se in corso o mai fatta; rosso se errore o sync di un giorno precedente
