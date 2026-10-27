@@ -9,6 +9,10 @@ on:
         description: 'Giorni da scaricare (default 7)'
         required: false
         default: '7'
+      kcal_overrides:
+        description: 'Correzioni manuali kcal (JSON, es. {"2026-10-17": 2820})'
+        required: false
+        default: ''
 
 jobs:
   sync:
@@ -32,4 +36,5 @@ jobs:
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
           DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
           DAYS_BACK: ${{ github.event.inputs.days_back || '7' }}
+          KCAL_OVERRIDES: ${{ github.event.inputs.kcal_overrides || '' }}
         run: python garmin_sync_ci.py

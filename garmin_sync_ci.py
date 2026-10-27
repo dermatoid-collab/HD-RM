@@ -39,18 +39,13 @@ def sync_kcal(garmin):
         try:
             data = garmin.get_daily_summary(ds)
             if data:
-                # attributi snake_case della dataclass UserDailySummary
-                active = _attr(data, "active_kilocalories", default=0) or 0
-                bmr    = _attr(data, "bmr_kilocalories",    default=0) or 0
-                kcal   = (active + bmr) if (active or bmr) else None
-                if kcal and int(kcal) > 0:
-                    kcal_map[ds] = int(kcal)
-                    print(f"  {ds}: {int(kcal)} kcal (attive={int(active)}, BMR={int(bmr)})")
+                # calorie CONSUMATE (diario alimentare), non quelle bruciate (active + bmr)
+                consumed = _attr(data, "consumed_kilocalories", default=0) or 0
+                if int(consumed) > 0:
+                    kcal_map[ds] = int(consumed)
+                    print(f"  {ds}: {int(consumed)} kcal consumate")
                 else:
-                    print(f"  {ds}: kcal zero o assenti")
-                # debug: stampa tutti gli attr con "calori" nel nome
-                cal_attrs = {a: getattr(data, a) for a in dir(data) if 'calori' in a.lower() and not a.startswith('_')}
-                print(f"  {ds} calorie attrs: {cal_attrs}")
+                    print(f"  {ds}: kcal consumate zero o assenti")
         except Exception as e:
             print(f"  {ds}: errore kcal - {e}")
         cur += timedelta(days=1)
@@ -167,6 +162,13 @@ def main():
     existing_kcal = download_from_dropbox(dropbox_token, DROPBOX_KCAL_PATH)
     existing_sleep = download_from_dropbox(dropbox_token, DROPBOX_SLEEP_PATH)
     merged_kcal = {**existing_kcal, **kcal_map}
+
+    # correzioni manuali opzionali, es. KCAL_OVERRIDES='{"2026-10-17": 2820}'
+    overrides = os.environ.get("KCAL_OVERRIDES", "").strip()
+    if overrides:
+        for day, value in json.loads(overrides).items():
+            merged_kcal[day] = int(value)
+            print(f"  Correzione manuale: {day} = {int(value)} kcal")
     merged_sleep = {**existing_sleep, **sleep_map}
 
     upload_to_dropbox(dropbox_token, DROPBOX_KCAL_PATH, merged_kcal)
