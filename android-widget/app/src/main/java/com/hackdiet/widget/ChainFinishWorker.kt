@@ -51,6 +51,9 @@ class ChainFinishWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
         }
         val text = "Sync: ${if (syncOk) "OK" else "NO"} - Brief: ${if (briefOk) "OK" else "NO"}" +
             " - Missing: $missing$copyNote"
+        // sotto la riga di stato: elenco dei dati mancanti (se ci sono)
+        val missingList = Prefs.get(ctx, Prefs.KEY_RUN_MISSING_LIST)
+        val fullText = if (missingList.isNotBlank()) "$text\n$missingList" else text
 
         val nm = NotificationManagerCompat.from(ctx)
         val posted = nm.areNotificationsEnabled() && runCatching {
@@ -61,6 +64,7 @@ class ChainFinishWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
                 .setSmallIcon(R.drawable.ic_widget)
                 .setContentTitle(title)
                 .setContentText(text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(fullText))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(false)
                 .build()
@@ -68,7 +72,7 @@ class ChainFinishWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
         }.isSuccess
         if (!posted) {
             Handler(Looper.getMainLooper()).post {
-                Toast.makeText(ctx, "$title\n$text", Toast.LENGTH_LONG).show()
+                Toast.makeText(ctx, "$title\n$fullText", Toast.LENGTH_LONG).show()
             }
         }
         return Result.success()

@@ -29,6 +29,7 @@ object Prefs {
     const val KEY_RUN_SYNC_OK = "run_sync_ok"      // "1" = ok, altro = no (tap sul widget)
     const val KEY_RUN_BRIEF_OK = "run_brief_ok"
     const val KEY_RUN_MISSING = "run_missing"      // "1" = il Brief ha dati mancanti
+    const val KEY_RUN_MISSING_LIST = "run_missing_list"   // righe dell'elenco dei dati mancanti
     private const val MAX_LOG_ENTRIES = 3          // ultime sincronizzazioni conservate (intere)
     private const val LOG_SEP = "\u001E"
 
