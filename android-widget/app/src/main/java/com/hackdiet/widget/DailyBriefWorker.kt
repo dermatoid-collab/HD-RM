@@ -530,7 +530,7 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
         if (this == null) return "-"
         return when (optIntOrNull("sleepQuality")) {
             1    -> "Continuous"
-            2, 3 -> "Interrupted"
+            2, 3, 4 -> "Interrupted"
             else -> "-"
         }
     }
