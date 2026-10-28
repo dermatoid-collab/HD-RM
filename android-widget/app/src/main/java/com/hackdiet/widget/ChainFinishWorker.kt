@@ -37,7 +37,9 @@ class ChainFinishWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
         }
 
         val title = "HD-RM Sync: ${if (syncOk && briefOk) "OK" else "NO"}"
-        val text = "Sync: ${if (syncOk) "OK" else "NO"} - Brief: ${if (briefOk) "OK" else "NO"}$copyNote"
+        val missingYes = Prefs.get(ctx, Prefs.KEY_RUN_MISSING) == "1"
+        val text = "Sync:${if (syncOk) "OK" else "NO"}-Brief:${if (briefOk) "OK" else "NO"}" +
+            "-Missing:${if (missingYes) "YES" else "NO"}$copyNote"
 
         val nm = NotificationManagerCompat.from(ctx)
         val posted = nm.areNotificationsEnabled() && runCatching {

@@ -36,6 +36,7 @@ class SyncWidget : AppWidgetProvider() {
             SyncWidget2x1.updateAll(ctx)
             Prefs.set(ctx, Prefs.KEY_RUN_SYNC_OK, "")
             Prefs.set(ctx, Prefs.KEY_RUN_BRIEF_OK, "")
+            Prefs.set(ctx, Prefs.KEY_RUN_MISSING, "")
             val sync = OneTimeWorkRequestBuilder<SyncWorker>()
                 .setInputData(workDataOf(SyncWorker.KEY_CHAIN to true)).build()
             val brief = OneTimeWorkRequestBuilder<DailyBriefWorker>()

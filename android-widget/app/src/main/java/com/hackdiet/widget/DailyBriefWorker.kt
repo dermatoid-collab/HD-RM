@@ -87,6 +87,7 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
 
 
             val missing = missingData(sb.toString())
+            Prefs.set(ctx, Prefs.KEY_RUN_MISSING, if (missing.isNotEmpty()) "1" else "0")
             if (missing.isNotEmpty()) {
                 sb.appendLine()
                 sb.appendLine("Missing data:")
