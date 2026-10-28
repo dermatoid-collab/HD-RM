@@ -86,9 +86,10 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             sb.appendLine(if (notesToday.isEmpty()) "-" else notesToday.joinToString("\n\n"))
 
 
-            val missing = missingData(sb.toString())
+            val briefSoFar = sb.toString()
+            val missing = missingData(briefSoFar)
             Prefs.set(ctx, Prefs.KEY_RUN_MISSING, if (missing.isNotEmpty()) "1" else "0")
-            Prefs.set(ctx, Prefs.KEY_RUN_MISSING_LIST, missing.joinToString("\n"))
+            Prefs.set(ctx, Prefs.KEY_RUN_MISSING_LIST, missingLabels(briefSoFar).joinToString(" / "))
             sb.appendLine()
             sb.appendLine("Missing data:")
             if (missing.isEmpty()) sb.appendLine("None") else missing.forEach { sb.appendLine(it) }
@@ -127,7 +128,7 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
     private val MISSING_LABEL_ONLY = Regex("""^([^:]+):$""")
     private val MISSING_DASH_UNIT = Regex("""-\s+[^\d\s]\S*""")
 
-    private fun missingData(text: String): List<String> {
+    private fun missingBySection(text: String): Map<String, List<String>> {
         val bySection = linkedMapOf<String, MutableList<String>>()
         fun add(section: String, label: String) {
             val list = bySection.getOrPut(section) { mutableListOf() }
@@ -184,8 +185,24 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             }
             if (t == "-" && lastLabel != null) add(section, lastLabel!!)
         }
-        return bySection.map { (sec, labels) -> "- $sec: ${labels.joinToString(", ")}" }
+        return bySection
     }
+
+    // Per il Brief: una riga per sezione ("- POWER: Max power, CHO used")
+    private fun missingData(text: String): List<String> =
+        missingBySection(text).map { (sec, labels) -> "- $sec: ${labels.joinToString(", ")}" }
+
+    // Per la notifica: solo le voci, senza sezioni
+    private fun missingLabels(text: String): List<String> =
+        missingBySection(text).flatMap { (sec, labels) ->
+            labels.map { l ->
+                when {
+                    sec == "Notes" -> "Notes ($l)"
+                    l == "no activity found" -> "No activity found"
+                    else -> l
+                }
+            }
+        }.distinct()
 
     // ── Formattazione singola attività ─────────────────────────────────────────
 
