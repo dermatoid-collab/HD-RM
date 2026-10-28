@@ -37,9 +37,14 @@ class ChainFinishWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
         }
 
         val title = "HD-RM Sync: ${if (syncOk && briefOk) "OK" else "NO"}"
-        val missingYes = Prefs.get(ctx, Prefs.KEY_RUN_MISSING) == "1"
-        val text = "Sync:${if (syncOk) "OK" else "NO"}-Brief:${if (briefOk) "OK" else "NO"}" +
-            "-Missing:${if (missingYes) "YES" else "NO"}$copyNote"
+        // Missing: YES se il Brief ha dati mancanti, NO solo se li ha verificati e non ne mancano, "-" se il Brief non c'è
+        val missing = when (Prefs.get(ctx, Prefs.KEY_RUN_MISSING)) {
+            "1" -> "YES"
+            "0" -> "NO"
+            else -> "-"
+        }
+        val text = "Sync: ${if (syncOk) "OK" else "NO"} - Brief: ${if (briefOk) "OK" else "NO"}" +
+            " - Missing: $missing$copyNote"
 
         val nm = NotificationManagerCompat.from(ctx)
         val posted = nm.areNotificationsEnabled() && runCatching {
