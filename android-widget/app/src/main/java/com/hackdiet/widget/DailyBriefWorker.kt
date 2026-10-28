@@ -88,11 +88,9 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
 
             val missing = missingData(sb.toString())
             Prefs.set(ctx, Prefs.KEY_RUN_MISSING, if (missing.isNotEmpty()) "1" else "0")
-            if (missing.isNotEmpty()) {
-                sb.appendLine()
-                sb.appendLine("Missing data:")
-                missing.forEach { sb.appendLine(it) }
-            }
+            sb.appendLine()
+            sb.appendLine("Missing data:")
+            if (missing.isEmpty()) sb.appendLine("None") else missing.forEach { sb.appendLine(it) }
 
             val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
             Prefs.set(ctx, Prefs.KEY_DAILY_BRIEF_LAST,
