@@ -71,7 +71,7 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             sb.appendLine("Morning HRV-RM (HRVRM): ${wellnessToday.fmtDec("HRVRM")}")
             sb.appendLine("ASIRM: ${wellnessToday.fmtStr("ASIRM")}")
             sb.appendLine("Sleep score: ${wellnessToday.fmtDec("sleepScore")}")
-            sb.appendLine("Sleep quality: ${wellnessToday.fmtInt("sleepQuality")}")
+            sb.appendLine("Sleep quality: ${sleepQualityValue(ctx, wellnessToday, today)}")
             sb.appendLine()
             sb.appendLine("WELLNESS (yesterday):")
             sb.appendLine("Wellness date: ${wellnessYest.fmtStr("id")}")
@@ -104,6 +104,17 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             Prefs.set(ctx, Prefs.KEY_RUN_BRIEF_OK, "0")
             if (chain) Result.success() else Result.failure()
         }
+    }
+
+    // sleepQuality di Intervals; se manca, dal sleepScore di Intervals; se manca, dal punteggio Garmin della sync
+    private fun sleepQualityValue(ctx: Context, w: JSONObject?, today: LocalDate): String {
+        w?.optIntOrNull("sleepQuality")?.let { return it.toString() }
+        val intervalsScore = w?.takeIf { it.has("sleepScore") && !it.isNull("sleepScore") }
+            ?.optDouble("sleepScore", Double.NaN)?.takeIf { !it.isNaN() }
+        val garminScore = Prefs.get(ctx, Prefs.KEY_LAST_SLEEP_SCORE, "").split("|")
+            .takeIf { it.size == 2 && it[0] == today.toString() }?.get(1)?.toDoubleOrNull()
+        val score = intervalsScore ?: garminScore ?: return "-"
+        return Prefs.sleepQualityFromScore(score).toString()
     }
 
     // ── Elenco dati mancanti (righe con valore "-"), raggruppato per sezione ──

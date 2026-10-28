@@ -108,6 +108,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 todayData.remSleepMin?.let { "R${it}'" }
             ).joinToString("·")
             if (sleepParts.isNotEmpty()) Prefs.set(ctx, Prefs.KEY_LAST_SLEEP, sleepParts)
+            todayData.sleepScore?.let { Prefs.set(ctx, Prefs.KEY_LAST_SLEEP_SCORE, "$today|$it") }
 
             Prefs.appendLog(ctx, detail)
             SyncWidget.updateAll(ctx)

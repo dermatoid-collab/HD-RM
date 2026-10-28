@@ -30,7 +30,8 @@ object GarminApi {
         val deepSleepMin: Int?,
         val remSleepMin: Int?,
         val totalSleepMin: Int?,
-        val rhr: Int?
+        val rhr: Int?,
+        val sleepScore: Int? = null
     )
 
     // Loggato nel sync log per debug — mostra URL, status HTTP e primi 500 char del body
@@ -83,6 +84,7 @@ object GarminApi {
         var deepMin: Int? = null
         var remMin: Int? = null
         var totalMin: Int? = null
+        var sleepScore: Int? = null
         if (sleepCode in 200..299) {
             try {
                 val j = JSONObject(sleepBody)
@@ -91,11 +93,13 @@ object GarminApi {
                 deepMin = secs("deepSleepSeconds")
                 remMin = secs("remSleepSeconds")
                 totalMin = secs("sleepTimeSeconds") ?: secs("totalSleepSeconds")
+                sleepScore = j.optJSONObject("sleepScores")?.optJSONObject("overall")
+                    ?.optInt("value", 0)?.takeIf { it > 0 }
             } catch (e: Exception) {
                 debugLog.appendLine("SLEEP parse error: ${e.message}")
             }
         }
 
-        return DayData(kcalConsumed, deepMin, remMin, totalMin, rhr)
+        return DayData(kcalConsumed, deepMin, remMin, totalMin, rhr, sleepScore)
     }
 }

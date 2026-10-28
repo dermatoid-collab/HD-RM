@@ -25,6 +25,7 @@ object Prefs {
     // nero, bianco, giallo, verde, indaco, viola, rosso, arancione
     val BG_PALETTE = listOf("#000000", "#FFFFFF", "#FBC02D", "#2E7D32", "#3F51B5", "#7B1FA2", "#C62828", "#EF6C00")
     const val KEY_DAILY_BRIEF_LAST = "daily_brief_last"
+    const val KEY_LAST_SLEEP_SCORE = "last_sleep_score"   // "yyyy-MM-dd|punteggio" Garmin dell'ultima sync
     const val KEY_RUN_SYNC_OK = "run_sync_ok"      // "1" = ok, altro = no (tap sul widget)
     const val KEY_RUN_BRIEF_OK = "run_brief_ok"
     private const val MAX_LOG_ENTRIES = 3          // ultime sincronizzazioni conservate (intere)
@@ -53,6 +54,14 @@ object Prefs {
     }
 
     fun logText(ctx: Context): String = get(ctx, KEY_LOG, "").split(LOG_SEP).joinToString("\n")
+
+    // Stessa regola che Intervals applica a sleepScore: da 90 -> 1, da 80 -> 2, da 60 -> 3, altrimenti 4
+    fun sleepQualityFromScore(score: Double): Int = when {
+        score >= 90 -> 1
+        score >= 80 -> 2
+        score >= 60 -> 3
+        else -> 4
+    }
 
     fun isStateBg(ctx: Context) = get(ctx, KEY_WIDGET_BG_MODE, "fixed") == "state"
 
