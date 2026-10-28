@@ -86,6 +86,13 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             sb.appendLine(if (notesToday.isEmpty()) "-" else notesToday.joinToString("\n\n"))
 
 
+            val missing = missingData(sb.toString())
+            if (missing.isNotEmpty()) {
+                sb.appendLine()
+                sb.appendLine("Missing data:")
+                missing.forEach { sb.appendLine(it) }
+            }
+
             val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
             Prefs.set(ctx, Prefs.KEY_DAILY_BRIEF_LAST,
                 "── Daily Brief $ts ──────────────\n${sb.toString().trimEnd()}")
@@ -97,6 +104,76 @@ class DailyBriefWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker
             Prefs.set(ctx, Prefs.KEY_RUN_BRIEF_OK, "0")
             if (chain) Result.success() else Result.failure()
         }
+    }
+
+    // ── Elenco dati mancanti (righe con valore "-"), raggruppato per sezione ──
+
+    private val MISSING_HEADERS = setOf(
+        "TIME / DISTANCE", "POWER", "LOAD", "POWER ZONES", "HR", "HR ZONES", "CADENCE",
+        "ENVIRONMENT", "CORE TEMPERATURE", "FITNESS", "ADDITIONAL ACTIVITY FIELDS"
+    )
+    private val MISSING_LABEL_VALUE = Regex("""^([^:]+):\s+(.*)$""")
+    private val MISSING_LABEL_ONLY = Regex("""^([^:]+):$""")
+    private val MISSING_DASH_UNIT = Regex("""-\s+[^\d\s]\S*""")
+
+    private fun missingData(text: String): List<String> {
+        val bySection = linkedMapOf<String, MutableList<String>>()
+        fun add(section: String, label: String) {
+            val list = bySection.getOrPut(section) { mutableListOf() }
+            if (label !in list) list.add(label)
+        }
+        var section = "Ride summary"
+        var ride = ""
+        var lastLabel: String? = null
+        var inNotes = false
+        val lines = text.lines()
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i].trimEnd()
+            i++
+            if (line.startsWith("Notes (")) {
+                inNotes = true
+                if (i < lines.size && lines[i].trim() == "-") add("Notes", line.substringAfter("(").substringBefore(")"))
+                continue
+            }
+            if (inNotes) continue
+            val t = line.trim()
+            if (line.startsWith("Yesterday Ride Summary")) {
+                ride = line.substringAfter("Summary").removeSuffix(":").trim()
+                section = (if (ride.isNotEmpty()) "$ride " else "") + "Ride summary"
+                lastLabel = null
+                continue
+            }
+            if (line.startsWith("No activity found")) {
+                add("Ride summary", "no activity found")
+                continue
+            }
+            val isSleep = line.startsWith("SLEEP and REST")
+            val isWellness = line.startsWith("WELLNESS (yesterday)")
+            if (t in MISSING_HEADERS || isSleep || isWellness) {
+                section = when {
+                    isSleep -> "SLEEP and REST"
+                    isWellness -> "WELLNESS (yesterday)"
+                    else -> (if (ride.isNotEmpty()) "$ride " else "") + t
+                }
+                lastLabel = null
+                continue
+            }
+            val lv = MISSING_LABEL_VALUE.find(line)
+            if (lv != null) {
+                val value = lv.groupValues[2]
+                if (value == "-" || MISSING_DASH_UNIT.matches(value)) add(section, lv.groupValues[1])
+                lastLabel = null
+                continue
+            }
+            val lo = MISSING_LABEL_ONLY.find(line)
+            if (lo != null) {
+                lastLabel = lo.groupValues[1]
+                continue
+            }
+            if (t == "-" && lastLabel != null) add(section, lastLabel!!)
+        }
+        return bySection.map { (sec, labels) -> "- $sec: ${labels.joinToString(", ")}" }
     }
 
     // ── Formattazione singola attività ─────────────────────────────────────────
