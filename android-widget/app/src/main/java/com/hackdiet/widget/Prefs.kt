@@ -27,7 +27,8 @@ object Prefs {
     const val KEY_DAILY_BRIEF_LAST = "daily_brief_last"
     const val KEY_RUN_SYNC_OK = "run_sync_ok"      // "1" = ok, altro = no (tap sul widget)
     const val KEY_RUN_BRIEF_OK = "run_brief_ok"
-    private const val MAX_LOG_LINES = 50
+    private const val MAX_LOG_ENTRIES = 3          // ultime sincronizzazioni conservate (intere)
+    private const val LOG_SEP = "\u001E"
 
     private fun prefs(ctx: Context) = EncryptedSharedPreferences.create(
         ctx,
@@ -43,13 +44,15 @@ object Prefs {
     fun set(ctx: Context, key: String, value: String) =
         prefs(ctx).edit().putString(key, value).apply()
 
-    fun appendLog(ctx: Context, line: String) {
+    fun appendLog(ctx: Context, entry: String) {
         val existing = get(ctx, KEY_LOG, "")
-        val lines = if (existing.isBlank()) mutableListOf() else existing.split("\n").toMutableList()
-        lines.add(0, line)
-        if (lines.size > MAX_LOG_LINES) lines.subList(MAX_LOG_LINES, lines.size).clear()
-        set(ctx, KEY_LOG, lines.joinToString("\n"))
+        val entries = if (existing.isBlank()) mutableListOf() else existing.split(LOG_SEP).toMutableList()
+        entries.add(0, entry)
+        while (entries.size > MAX_LOG_ENTRIES) entries.removeAt(entries.size - 1)
+        set(ctx, KEY_LOG, entries.joinToString(LOG_SEP))
     }
+
+    fun logText(ctx: Context): String = get(ctx, KEY_LOG, "").split(LOG_SEP).joinToString("\n")
 
     fun isStateBg(ctx: Context) = get(ctx, KEY_WIDGET_BG_MODE, "fixed") == "state"
 

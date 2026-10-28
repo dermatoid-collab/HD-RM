@@ -133,7 +133,7 @@ class SettingsActivity : Activity() {
     }
 
     private fun refreshLog() {
-        val log = Prefs.get(this, Prefs.KEY_LOG, "")
+        val log = Prefs.logText(this)
         tvLog.text = if (log.isBlank()) "Nessuna sincronizzazione ancora." else log
     }
 
