@@ -36,12 +36,18 @@ class ChainFinishWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
             if (!copied) copyNote = " (copia negli appunti non riuscita)"
         }
 
-        val title = "HD-RM Sync: ${if (syncOk && briefOk) "OK" else "NO"}"
-        // Missing: YES se il Brief ha dati mancanti, NO solo se li ha verificati e non ne mancano, "-" se il Brief non c'è
-        val missing = when (Prefs.get(ctx, Prefs.KEY_RUN_MISSING)) {
+        val missingFlag = Prefs.get(ctx, Prefs.KEY_RUN_MISSING)
+        // Missing: YES se il Brief ha dati mancanti, NO se la sezione contiene None, "-" se il Brief non c'è
+        val missing = when (missingFlag) {
             "1" -> "YES"
             "0" -> "NO"
             else -> "-"
+        }
+        // Titolo: OK = tutto riuscito e nessun dato mancante; Provisional = riuscito ma mancano dati; NO = sync o Brief falliti
+        val title = "HD-RM Sync: " + when {
+            !syncOk || !briefOk -> "NO"
+            missingFlag == "0" -> "OK"
+            else -> "Provisional"
         }
         val text = "Sync: ${if (syncOk) "OK" else "NO"} - Brief: ${if (briefOk) "OK" else "NO"}" +
             " - Missing: $missing$copyNote"
