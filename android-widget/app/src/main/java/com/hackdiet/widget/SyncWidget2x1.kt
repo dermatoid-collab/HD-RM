@@ -23,6 +23,7 @@ class SyncWidget2x1 : AppWidgetProvider() {
         private val COLOR_RED   = Color.parseColor("#ff5555")
         private val COLOR_WHITE = Color.WHITE
         private val COLOR_GRAY  = Color.parseColor("#555555")
+        private val COLOR_YELLOW = Color.parseColor("#FBC02D")
 
         fun updateAll(ctx: Context) {
             val mgr = AppWidgetManager.getInstance(ctx)
@@ -52,14 +53,18 @@ class SyncWidget2x1 : AppWidgetProvider() {
             val syncDate = lastSync.take(5) // "dd/MM"
             val isToday  = syncDate == todayStr && syncDate.isNotEmpty()
 
+            val isProvisional = isToday && !isInProgress && Prefs.isProvisional(ctx)
+
             val (stripeColor, textColor) = when {
-                isInProgress -> COLOR_GRAY to COLOR_WHITE
+                isInProgress  -> COLOR_GRAY to COLOR_WHITE
+                isProvisional -> COLOR_YELLOW to COLOR_YELLOW
                 isToday      -> COLOR_GREEN to COLOR_GREEN
                 else         -> COLOR_RED   to COLOR_RED
             }
 
             val bgState = when {
                 isInProgress -> BgState.PROGRESS
+                isProvisional -> BgState.PROVISIONAL
                 isToday -> BgState.OK
                 else -> BgState.STALE
             }
@@ -76,6 +81,12 @@ class SyncWidget2x1 : AppWidgetProvider() {
                     rv.setViewVisibility(R.id.iv_status_icon, View.VISIBLE)
                     rv.setViewVisibility(R.id.tv_status_check, View.GONE)
                     rv.setImageViewResource(R.id.iv_status_icon, R.drawable.ic_hourglass)
+                }
+                isProvisional -> {
+                    rv.setViewVisibility(R.id.iv_status_icon, View.GONE)
+                    rv.setViewVisibility(R.id.tv_status_check, View.VISIBLE)
+                    rv.setTextViewText(R.id.tv_status_check, "≈")
+                    rv.setTextColor(R.id.tv_status_check, COLOR_YELLOW)
                 }
                 isToday -> {
                     rv.setViewVisibility(R.id.iv_status_icon, View.GONE)

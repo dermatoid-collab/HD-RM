@@ -7,6 +7,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -24,6 +26,10 @@ class ChainFinishWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
         val ctx = applicationContext
         val syncOk = Prefs.get(ctx, Prefs.KEY_RUN_SYNC_OK) == "1"
         val briefOk = Prefs.get(ctx, Prefs.KEY_RUN_BRIEF_OK) == "1"
+        // fine catena: ora i widget possono mostrare lo stato "provvisorio" (dati mancanti)
+        Prefs.set(ctx, Prefs.KEY_RUN_DATE, LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM")))
+        SyncWidget.updateAll(ctx)
+        SyncWidget2x1.updateAll(ctx)
 
         var copyNote = ""
         if (briefOk) {

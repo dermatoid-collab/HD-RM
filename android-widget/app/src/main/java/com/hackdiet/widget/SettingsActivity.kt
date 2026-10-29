@@ -234,6 +234,7 @@ class SettingsActivity : Activity() {
         llState.removeAllViews()
         addSwatchRow(llFixed, null, Prefs.KEY_WIDGET_BG_COLOR, "#000000")
         addSwatchRow(llState, "Sync di oggi riuscita", Prefs.KEY_WIDGET_BG_OK, "#2E7D32")
+        addSwatchRow(llState, "Sync riuscita, dati mancanti", Prefs.KEY_WIDGET_BG_PROVISIONAL, "#FBC02D")
         addSwatchRow(llState, "Sync in corso", Prefs.KEY_WIDGET_BG_PROGRESS, "#FBC02D")
         addSwatchRow(llState, "Errore o sync non di oggi", Prefs.KEY_WIDGET_BG_STALE, "#C62828")
 
@@ -311,6 +312,7 @@ class SettingsActivity : Activity() {
                 put(Prefs.KEY_WIDGET_BG_MODE, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_MODE, "fixed"))
                 put(Prefs.KEY_WIDGET_BG_OK, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_OK, "#2E7D32"))
                 put(Prefs.KEY_WIDGET_BG_PROGRESS, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_PROGRESS, "#FBC02D"))
+                put(Prefs.KEY_WIDGET_BG_PROVISIONAL, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_PROVISIONAL, "#FBC02D"))
                 put(Prefs.KEY_WIDGET_BG_STALE, Prefs.get(this@SettingsActivity, Prefs.KEY_WIDGET_BG_STALE, "#C62828"))
             }
             contentResolver.openOutputStream(uri)?.use { out ->
@@ -340,6 +342,7 @@ class SettingsActivity : Activity() {
             maybeSet(Prefs.KEY_WIDGET_BG_MODE)
             maybeSet(Prefs.KEY_WIDGET_BG_OK)
             maybeSet(Prefs.KEY_WIDGET_BG_PROGRESS)
+            maybeSet(Prefs.KEY_WIDGET_BG_PROVISIONAL)
             maybeSet(Prefs.KEY_WIDGET_BG_STALE)
 
             // Aggiorna i campi visibili

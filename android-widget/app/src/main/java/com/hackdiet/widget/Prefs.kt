@@ -2,6 +2,8 @@ package com.hackdiet.widget
 
 import android.content.Context
 import android.graphics.Color
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
@@ -21,6 +23,7 @@ object Prefs {
     const val KEY_WIDGET_BG_MODE = "widget_bg_mode"     // "fixed" | "state"
     const val KEY_WIDGET_BG_OK = "widget_bg_ok"         // sfondo se la sync di oggi è riuscita
     const val KEY_WIDGET_BG_PROGRESS = "widget_bg_progress"
+    const val KEY_WIDGET_BG_PROVISIONAL = "widget_bg_provisional"   // sync e Brief riusciti ma con dati mancanti
     const val KEY_WIDGET_BG_STALE = "widget_bg_stale"   // errore o sync non di oggi
     // nero, bianco, giallo, verde, indaco, viola, rosso, arancione
     val BG_PALETTE = listOf("#000000", "#FFFFFF", "#FBC02D", "#2E7D32", "#3F51B5", "#7B1FA2", "#C62828", "#EF6C00")
@@ -28,6 +31,7 @@ object Prefs {
     const val KEY_LAST_SLEEP_SCORE = "last_sleep_score"   // "yyyy-MM-dd|punteggio" Garmin dell'ultima sync
     const val KEY_RUN_SYNC_OK = "run_sync_ok"      // "1" = ok, altro = no (tap sul widget)
     const val KEY_RUN_BRIEF_OK = "run_brief_ok"
+    const val KEY_RUN_DATE = "run_date"            // dd/MM del giorno in cui è finita l'ultima catena
     const val KEY_RUN_MISSING = "run_missing"      // "1" = il Brief ha dati mancanti
     const val KEY_RUN_MISSING_LIST = "run_missing_list"   // righe dell'elenco dei dati mancanti
     private const val MAX_LOG_ENTRIES = 3          // ultime sincronizzazioni conservate (intere)
@@ -65,12 +69,20 @@ object Prefs {
         else -> 4
     }
 
+    // Provvisorio: l'ultima catena di oggi è riuscita (sync + Brief) ma il Brief ha dati mancanti
+    fun isProvisional(ctx: Context): Boolean {
+        val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM"))
+        return get(ctx, KEY_RUN_DATE) == today && get(ctx, KEY_RUN_SYNC_OK) == "1" &&
+            get(ctx, KEY_RUN_BRIEF_OK) == "1" && get(ctx, KEY_RUN_MISSING) == "1"
+    }
+
     fun isStateBg(ctx: Context) = get(ctx, KEY_WIDGET_BG_MODE, "fixed") == "state"
 
     private fun bgHex(ctx: Context, state: BgState): String =
         if (isStateBg(ctx)) when (state) {
             BgState.OK -> get(ctx, KEY_WIDGET_BG_OK, "#2E7D32")
             BgState.PROGRESS -> get(ctx, KEY_WIDGET_BG_PROGRESS, "#FBC02D")
+            BgState.PROVISIONAL -> get(ctx, KEY_WIDGET_BG_PROVISIONAL, "#FBC02D")
             BgState.STALE -> get(ctx, KEY_WIDGET_BG_STALE, "#C62828")
         } else get(ctx, KEY_WIDGET_BG_COLOR, "#000000")
 
@@ -87,4 +99,4 @@ object Prefs {
         get(ctx, KEY_INTERVALS_ATHLETE_ID).isNotBlank()
 }
 
-enum class BgState { OK, PROGRESS, STALE }
+enum class BgState { OK, PROVISIONAL, PROGRESS, STALE }

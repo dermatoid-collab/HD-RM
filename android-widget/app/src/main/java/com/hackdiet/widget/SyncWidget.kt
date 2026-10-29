@@ -38,6 +38,7 @@ class SyncWidget : AppWidgetProvider() {
             Prefs.set(ctx, Prefs.KEY_RUN_BRIEF_OK, "")
             Prefs.set(ctx, Prefs.KEY_RUN_MISSING, "")
             Prefs.set(ctx, Prefs.KEY_RUN_MISSING_LIST, "")
+            Prefs.set(ctx, Prefs.KEY_RUN_DATE, "")
             val sync = OneTimeWorkRequestBuilder<SyncWorker>()
                 .setInputData(workDataOf(SyncWorker.KEY_CHAIN to true)).build()
             val brief = OneTimeWorkRequestBuilder<DailyBriefWorker>()
@@ -69,6 +70,9 @@ class SyncWidget : AppWidgetProvider() {
             val lastSync = Prefs.get(ctx, Prefs.KEY_LAST_SYNC, "")
 
             // Prima riga: freccia + simbolo di stato (✓ 🔍 ⏳ ✗ ↑); data e ora su una sola riga
+            val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM"))
+            val isToday = lastSync.startsWith(today)
+            val provisional = isToday && !status.startsWith("⏳") && !status.startsWith("✗") && Prefs.isProvisional(ctx)
             val lines = status.split("\n")
             val first = lines.first()
             val sym = first.substringBefore(" ", first)
@@ -78,7 +82,7 @@ class SyncWidget : AppWidgetProvider() {
                 Regex("""\d{2}/\d{2}""").matches(firstRest) && Regex("""\d{2}:\d{2}""").matches(lines[1])
             val body = if (structured) listOf("$firstRest ${lines[1]}") + lines.drop(2)
                 else listOfNotNull(firstRest.takeIf { it.isNotBlank() }) + lines.drop(1)
-            views.setTextViewText(R.id.tv_prefix, if (hasSym) sym else "")
+            views.setTextViewText(R.id.tv_prefix, if (hasSym) (if (provisional && sym == "✓") "≈" else sym) else "")
             views.setViewVisibility(R.id.tv_prefix, if (hasSym) View.VISIBLE else View.GONE)
             // sync riuscita senza dati di sonno (deep/REM non ancora disponibili): riga segnaposto, come nel 2x1
             val shown = if (structured && body.none { SLEEP_LINE.matches(it) }) body + "D—·R—" else body
@@ -86,11 +90,10 @@ class SyncWidget : AppWidgetProvider() {
             views.setTextViewText(R.id.tv_last, "")
 
             // Verde se sync di oggi riuscita; bianco se in corso o mai fatta; rosso se errore o sync di un giorno precedente
-            val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM"))
-            val isToday = lastSync.startsWith(today)
             val textColor = when {
                 status.startsWith("⏳") -> Color.WHITE
                 status.startsWith("✗") -> Color.rgb(255, 80, 80)
+                provisional -> Color.parseColor("#FBC02D")
                 isToday -> Color.parseColor("#4ade80")
                 lastSync.isBlank() -> Color.WHITE
                 else -> Color.rgb(255, 80, 80)
@@ -98,6 +101,7 @@ class SyncWidget : AppWidgetProvider() {
             val bgState = when {
                 status.startsWith("⏳") -> BgState.PROGRESS
                 status.startsWith("✗") -> BgState.STALE
+                provisional -> BgState.PROVISIONAL
                 isToday -> BgState.OK
                 else -> BgState.STALE
             }
@@ -108,6 +112,7 @@ class SyncWidget : AppWidgetProvider() {
             val barColor = when {
                 status.startsWith("⏳") -> Color.parseColor("#555555")
                 status.startsWith("✗") -> Color.parseColor("#ff5555")
+                provisional -> Color.parseColor("#FBC02D")
                 isToday -> Color.parseColor("#4ade80")
                 else -> Color.parseColor("#ff5555")
             }
